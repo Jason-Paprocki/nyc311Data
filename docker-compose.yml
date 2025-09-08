@@ -1,0 +1,38 @@
+# Specifies the docker-compose version. Version 3.8 is modern and widely used.
+version: "3.8"
+
+# Defines the services (containers) that make up your application.
+services:
+  # This is the name of our service. We'll call it 'db'.
+  db:
+    # This is the key part for your project.
+    # The 'postgis/postgis' image includes PostgreSQL AND the PostGIS extension,
+    # which is essential for working with geographic map data.
+    # Using this now will save you a massive headache later.
+    image: postgis/postgis:15-3.4
+
+    # This container will restart automatically if it crashes.
+    restart: always
+
+    # Environment variables to configure the PostgreSQL container.
+    # IMPORTANT: Change the password for any real project.
+    environment:
+      POSTGRES_USER: nyc311data
+      POSTGRES_PASSWORD: nyc311data
+      POSTGRES_DB: nyc311
+
+    # This "maps" the port inside the container (5432) to a port on your
+    # local machine (5432). This is how your Python app will connect to the DB.
+    ports:
+      - "5432:5432"
+
+    # This is the most critical part for data persistence.
+    # It links the directory where Postgres stores its data inside the container
+    # to a 'named volume' managed by Docker on your machine.
+    # WITHOUT THIS, ALL YOUR DATA WILL BE DELETED WHEN YOU STOP THE CONTAINER.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+
+# Defines the named volumes used by your services.
+volumes:
+  postgres_data:
