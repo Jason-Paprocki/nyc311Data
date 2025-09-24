@@ -17,6 +17,8 @@ services:
   populate_db:
     build:
       context: ./populate_db
+    env_file:
+      - .env
     depends_on:
       - db
     networks:
