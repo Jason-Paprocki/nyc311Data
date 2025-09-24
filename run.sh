@@ -1,41 +1,36 @@
 #!/bin/bash
 
-# A simple script to manage the Docker Compose environment for the NYC 311 Data Explorer.
-# It provides commands to bring the services up or take them down.
-
-# --- Helper Functions ---
-# Prints a usage message explaining how to use the script.
-usage() {
-  echo "Usage: $0 [--up | --down]"
-  echo "  --up    Builds images and starts all services in the background."
-  echo "  --down  Stops and removes all services."
-  exit 1
-}
-
-# --- Main Logic ---
-# Check if an argument was provided. If not, show usage.
+# Check if an argument is provided
 if [ -z "$1" ]; then
-  echo "Error: No command specified."
-  usage
+    echo "Usage: $0 --up | --down | --populate"
+    exit 1
 fi
 
-# Process the command provided by the user.
-case "$1" in
-  --up)
-    echo "🚀 Bringing services up..."
-    # The '--build' flag rebuilds images if their source files have changed.
-    # The '-d' flag runs the containers in detached mode (in the background).
-    docker-compose up --build -d
+# Main command logic
+if [ "$1" == "--up" ]; then
+    echo "🚀 Starting up services..."
+    # Start all services defined in docker-compose.yml in the background
+    docker-compose up -d --build
     echo "✅ Services are up and running."
-    ;;
-  --down)
-    echo "🛑 Bringing services down..."
-    # This command stops containers and removes containers, networks, and volumes created by 'up'.
+
+elif [ "$1" == "--down" ]; then
+    echo "🛑 Shutting down services..."
+    # Stop and remove all services defined in docker-compose.yml
     docker-compose down
     echo "✅ Services have been shut down."
-    ;;
-  *)
-    echo "Error: Invalid command '$1'."
-    usage
-    ;;
-esac
+
+elif [ "$1" == "--populate" ]; then
+    echo "🔄 Rebuilding the populator image to ensure latest changes..."
+    # Explicitly build the image first to pick up any code changes.
+    docker-compose build populate_db
+
+    echo "🔄 Populating the database with the latest 311 data..."
+    # Run the one-off populate_db service. --rm cleans up the container afterward.
+    docker-compose run --rm populate_db
+    echo "✅ Database population script finished."
+
+else
+    echo "Error: Invalid command '$1'"
+    echo "Usage: $0 --up | --down | --populate"
+    exit 1
+fi
