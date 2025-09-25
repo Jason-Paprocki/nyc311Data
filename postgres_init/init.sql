@@ -1,22 +1,24 @@
--- This script will be executed automatically when the container is first created.
+-- Enable the PostGIS extension to add support for geographic objects
+CREATE EXTENSION IF NOT EXISTS postgis;
 
--- We use CREATE TABLE IF NOT EXISTS to make the script safe to re-run
--- in case of any issues, although Docker's init mechanism won't run it twice.
+-- Create the main table to store 311 service complaints
 CREATE TABLE IF NOT EXISTS complaints (
     unique_key VARCHAR(50) PRIMARY KEY,
     created_date TIMESTAMP WITH TIME ZONE,
     closed_date TIMESTAMP WITH TIME ZONE,
-    agency VARCHAR(100),
+    agency VARCHAR(50),
     complaint_type VARCHAR(255),
     descriptor TEXT,
-    -- Increased precision and scale to handle high-resolution GPS data from the API
-    latitude DECIMAL(18, 15),
-    longitude DECIMAL(18, 15)
+    -- A single column to store the location as a geographic point.
+    -- SRID 4326 is the standard for GPS coordinates (WGS 84).
+    location GEOGRAPHY(Point, 4326)
 );
 
--- Optional: Add an index for faster geospatial queries later on
--- CREATE INDEX IF NOT EXISTS idx_complaints_location ON complaints (latitude, longitude);
+-- Create a spatial index on the location column.
+-- This is CRITICAL for fast location-based queries (e.g., "find all points within a radius").
+-- The GIST index type is specifically designed for this kind of data.
+CREATE INDEX IF NOT EXISTS complaints_location_idx ON complaints USING GIST (location);
 
--- Set the owner of the table to our application user
-ALTER TABLE complaints OWNER TO postgres;
-
+-- Optional: Add indexes on other commonly queried columns
+CREATE INDEX IF NOT EXISTS complaints_created_date_idx ON complaints (created_date);
+CREATE INDEX IF NOT EXISTS complaints_complaint_type_idx ON complaints (complaint_type);

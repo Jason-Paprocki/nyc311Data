@@ -34,7 +34,6 @@ def get_latest_timestamp(conn):
         result = cursor.fetchone()[0]
         if result:
             print(f"ℹ️  Latest record in DB is from: {result}. Fetching new data since then.")
-            # Format to ISO 8601 but without microseconds, which can cause issues.
             return result.strftime('%Y-%m-%dT%H:%M:%S')
         else:
             print("ℹ️  No existing data found. Starting historical data import.")
@@ -42,18 +41,29 @@ def get_latest_timestamp(conn):
 
 def clean_record(record):
     """
-    Validates and cleans a single record, converting types and handling nulls.
+    Validates and cleans a single record, preparing it for PostGIS insertion.
     Returns a tuple of cleaned data, or None if the record is invalid.
     """
     try:
         if not record.get("unique_key"): return None
-        latitude = float(record["latitude"]) if record.get("latitude") else None
-        longitude = float(record["longitude"]) if record.get("longitude") else None
+
+        # Prepare the location data in Well-Known Text (WKT) format for PostGIS.
+        # Format: POINT(longitude latitude)
+        location_wkt = None
+        lat = record.get("latitude")
+        lon = record.get("longitude")
+        if lat and lon:
+            # Convert to float to ensure they are valid numbers before creating the point
+            latitude = float(lat)
+            longitude = float(lon)
+            location_wkt = f"POINT({longitude} {latitude})"
+
         created_date = datetime.fromisoformat(record["created_date"]) if record.get("created_date") else None
         closed_date = datetime.fromisoformat(record["closed_date"]) if record.get("closed_date") else None
+
         return (
             record.get("unique_key"), created_date, closed_date, record.get("agency"),
-            record.get("complaint_type"), record.get("descriptor"), latitude, longitude,
+            record.get("complaint_type"), record.get("descriptor"), location_wkt,
         )
     except (ValueError, TypeError) as e:
         print(f"⚠️  Skipping record due to cleaning error (key: {record.get('unique_key')}): {e}")
@@ -61,21 +71,23 @@ def clean_record(record):
 
 def process_batch(conn, batch):
     """
-    Processes a batch of records and inserts them into the database efficiently.
+    Processes a batch of records and inserts them into the database using the new PostGIS schema.
     """
     if not batch: return
     cleaned_data = [clean_record(rec) for rec in batch]
     insert_data = [rec for rec in cleaned_data if rec is not None]
     if not insert_data: return
 
+    # Updated INSERT statement for the new schema with a 'location' column.
     insert_query = """
         INSERT INTO complaints (
             unique_key, created_date, closed_date, agency,
-            complaint_type, descriptor, latitude, longitude
+            complaint_type, descriptor, location
         ) VALUES %s ON CONFLICT (unique_key) DO NOTHING;
     """
     with conn.cursor() as cursor:
         try:
+            # psycopg2 automatically handles converting the WKT string to a GEOGRAPHY type.
             psycopg2.extras.execute_values(
                 cursor, insert_query, insert_data, page_size=len(insert_data)
             )
@@ -100,6 +112,7 @@ def main():
     total_records_processed = 0
 
     while True:
+        # Note: We still need to fetch latitude and longitude from the API
         soql_query = f"""
             SELECT
               `unique_key`, `created_date`, `closed_date`, `agency`,
