@@ -63,11 +63,11 @@ The goal of this phase is to reliably fetch data from the NYC OpenData API and s
 - [x] **1A: Dockerize the Python Ingestion Script**
   - Create a `Dockerfile` for the Python script.
   - Ensure the base image (`python:3.9-slim`) can be pulled and the container builds successfully.
-- [ ] **1B: Set up the PostgreSQL Database**
+- [x] **1B: Set up the PostgreSQL Database**
   - Create a `docker-compose.yml` file.
   - Define a `postgres` service with a persistent volume for data.
   - Manage database credentials securely.
-- [ ] **1C: Connect Python to Postgres**
+- [x] **1C: Connect Python to Postgres**
   - Update the Python script to connect to the Postgres container using Docker's internal networking.
   - Implement the logic to insert the fetched 311 data into the database.
 
