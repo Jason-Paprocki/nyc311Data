@@ -1,7 +1,7 @@
 import requests
 import json
 from urllib.parse import quote
-
+import sys
 def process_batch(records):
     """
     Placeholder function to process a batch of records.
@@ -9,8 +9,8 @@ def process_batch(records):
     """
     # For now, we'll just confirm we received the records.
     print(f"  > Processing {len(records)} records in this batch...")
-    # In a real scenario, you would connect to the DB and execute
-    # an INSERT statement for these records here.
+    print(json.dumps(records[0], indent=4))
+
     pass
 
 def populate_data():
@@ -23,8 +23,8 @@ def populate_data():
     # --- Configuration ---
     BASE_URL = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
     PAGE_SIZE = 1000
-    offset = 0
-    START_DATE = "2010-01-01T00:00:00"
+    offset = 230000
+    START_DATE = "2025-09-01T00:00:00"
 
     # --- Pagination & Processing Loop ---
     while True:
@@ -48,7 +48,6 @@ def populate_data():
             response = requests.get(full_url)
             response.raise_for_status()
             batch = response.json()
-
             if not batch:
                 print("No more data to fetch. Exiting loop.")
                 break
