@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgis/postgis:15-3.4 # Use the PostGIS enabled image
     container_name: nyc_311_db
     restart: always
     env_file:
@@ -16,6 +16,7 @@ services:
   populate_db:
     build:
       context: ./populate_db
+    container_name: nyc_311_populator
     env_file:
       - .env
     depends_on:
