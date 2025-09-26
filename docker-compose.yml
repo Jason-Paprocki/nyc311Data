@@ -45,6 +45,8 @@ services:
       context: ./frontend
     container_name: nyc_311_frontend
     restart: always
+    env_file:
+      - .env
     ports:
       - "5173:5173"
     volumes:
@@ -60,4 +62,3 @@ volumes:
 networks:
   app-network:
     driver: bridge
-
