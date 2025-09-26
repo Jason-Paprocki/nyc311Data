@@ -1,14 +1,14 @@
-import React, { useState } from "react";
-// --- THIS IS THE FIX ---
-// We import from 'react-map-gl/maplibre' to explicitly use the MapLibre library.
-import Map, { Marker } from "react-map-gl/maplibre";
+import React, { useState, useEffect } from "react";
+import Map, { Marker, Source, Layer } from "react-map-gl/maplibre";
+import * as turf from "@turf/turf";
 import Header from "./components/Header";
+import { highlightedDistrictStyle } from "./mapStyles"; // We only need the highlight style now
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./App.css";
 
 const NYC_BOUNDS = [
-  [-74.25909, 40.477398], // Southwest coordinates
-  [-73.700181, 40.917577], // Northeast coordinates
+  [-74.25909, 40.477398],
+  [-73.700181, 40.917577],
 ];
 
 function App() {
@@ -18,6 +18,24 @@ function App() {
     latitude: 40.7128,
     zoom: 11,
   });
+  const [allDistricts, setAllDistricts] = useState(null);
+  const [highlightedDistrict, setHighlightedDistrict] = useState(null);
+
+  useEffect(() => {
+    const fetchDistrictData = async () => {
+      const response = await fetch(
+        "https://data.cityofnewyork.us/resource/5crt-au7u.json",
+      );
+      const data = await response.json();
+      const features = data.map((district) => ({
+        type: "Feature",
+        geometry: district.the_geom,
+        properties: { boro_cd: district.boro_cd },
+      }));
+      setAllDistricts({ type: "FeatureCollection", features });
+    };
+    fetchDistrictData();
+  }, []);
 
   const handleSearch = async (address) => {
     const response = await fetch(
@@ -25,17 +43,30 @@ function App() {
     );
     const data = await response.json();
 
-    if (data && data.length > 0) {
+    if (data && data.length > 0 && allDistricts) {
       const { lat, lon } = data[0];
       const newPos = { latitude: parseFloat(lat), longitude: parseFloat(lon) };
+      const point = turf.point([newPos.longitude, newPos.latitude]);
 
-      setViewState({ ...newPos, zoom: 15 });
+      let foundDistrict = null;
+      for (const district of allDistricts.features) {
+        if (turf.booleanPointInPolygon(point, district.geometry)) {
+          foundDistrict = district;
+          break;
+        }
+      }
+
+      setHighlightedDistrict(foundDistrict);
+      setViewState({ ...newPos, zoom: 14 });
       setMarkerPosition(newPos);
     } else {
-      alert("Address not found. Please try again.");
+      alert("Address not found or district data not loaded yet.");
+      setHighlightedDistrict(null);
     }
   };
 
+  // --- THIS IS THE CORRECTED PART ---
+  // We now correctly use the Maptiler URL directly, not the old tileLayers object.
   const mapStyleUrl = `https://api.maptiler.com/maps/019986e1-bffa-78b0-a4af-bca020aa39ae/style.json?key=${import.meta.env.VITE_MAPTILER_API}`;
 
   return (
@@ -54,6 +85,12 @@ function App() {
             latitude={markerPosition.latitude}
             anchor="bottom"
           />
+        )}
+
+        {highlightedDistrict && (
+          <Source type="geojson" data={highlightedDistrict}>
+            <Layer {...highlightedDistrictStyle} />
+          </Source>
         )}
       </Map>
     </div>
