@@ -1,106 +1,83 @@
-# NYC 311 Data Explorer
+NYC 311 Data Visualization Project
 
-Have you ever heard a distant siren or seen a blocked-off street and wondered what was going on? As a resident of New York City, I was always curious about the pulse of the city as told through its 311 service calls. This project was born from a simple desire to see what's happening in my neighborhood—and yours—in a quick, visual way.
+This project is a full-stack web application designed to ingest, process, and visualize 311 complaint data for New York City using a sophisticated geospatial approach. It demonstrates skills in data engineering, backend and frontend development, and modern DevSecOps practices.
 
-What started as a personal tool grew into a project built with the reliability and security needed to be shared with fellow New Yorkers.
+Project Vision
 
----
+The final application will provide users with an interactive, high-performance map interface to explore NYC 311 complaint data. Key features include:
 
-## ## Architecture Overview
+    Hexagonal Heatmap: A dynamic, color-coded hexagonal grid visualizing complaint density across the city.
 
-This project is a modern, full-stack web application designed for performance and reliability. To ensure it runs smoothly and securely, it's built on a containerized architecture and deployed to the AWS cloud.
+    Address Search: An autocomplete-enabled search bar to instantly navigate to any address in NYC.
 
-**High-Level Flow:**
-A user's browser loads the **React** frontend from a high-speed Content Delivery Network (**AWS CloudFront**). When a user searches for an address, the app calls our **Python API**, which runs as a "serverless" container in **AWS ECS**. The API then securely queries our **PostgreSQL** database (**AWS RDS**) to fetch the relevant 311 data and returns it for display on the map.
+    Contextual "Scorecard": A side panel that provides at-a-glance statistics for a searched area, comparing local complaint levels to the Community District average.
 
----
+    Custom Map Styling: A clean, minimalist vector map designed for data visualization, with all unnecessary clutter removed.
 
-## ## Technology & Purpose
+Technology Stack
 
-Building a high-quality, public-facing application requires using the right tools for the job. Every technology here was chosen to make the final product more robust, secure, and efficient.
+    Data Pipeline: Python, Docker
 
-### ### Application & Data
+    Database: PostgreSQL with PostGIS for geospatial analysis
 
-* **React:** Chosen for its component-based architecture, making it ideal for building the complex and interactive map interface.
-* **Leaflet:** A lightweight, open-source mapping library used to render the map and plot the 311 data points efficiently.
-* **Python/FastAPI:** A modern, high-performance combination used to build our backend API. Its speed ensures that data is fetched and delivered to the user quickly.
-* **PostgreSQL:** A powerful, open-source relational database used to store and efficiently query the large 311 dataset with geospatial capabilities.
+    Backend: FastAPI
 
-### ### Infrastructure & Operations
+    Frontend: React, Vite, MapLibre GL JS for vector map rendering
 
-* **Docker:** Provides a consistent and isolated environment for each part of the application, eliminating "it works on my machine" problems and streamlining development.
-* **Terraform:** Manages our entire AWS cloud environment through code. This ensures our production infrastructure is stable, repeatable, and free from manual configuration errors.
-* **AWS:** Provides the scalable, on-demand cloud infrastructure needed to run a reliable, public-facing web service.
-* **AWS ECS on Fargate:** Runs our application containers without requiring server management. This allows the application to scale automatically based on traffic.
-* **AWS RDS:** A managed PostgreSQL service. AWS handles backups, patching, and availability, ensuring our data is always safe and accessible.
+    Geospatial: H3 for hexagonal grid system, Maptiler for custom map styles, Nominatim for geocoding
 
-### ### Quality & Security Automation
+Project Plan & Status
 
-* **GitHub Actions:** The automation engine for the project. It automatically tests and scans every code change to guarantee that new features are safe and reliable before they reach users.
-* **Security Scanners:** A suite of tools (**Bandit, Trivy, OWASP ZAP, tfsec**) are integrated into our pipeline. As a responsible developer, it's crucial to proactively scan for security vulnerabilities to ensure the application is safe for everyone.
-* **AWS Secrets Manager:** Securely manages sensitive information like database credentials. This prevents secrets from being exposed in our codebase and is a critical security best practice.
+Phase 1: Data Pipeline & Storage (The Foundation)
 
----
+STATUS: 95% Complete
+The goal is to reliably fetch, store, and structure NYC data for high-performance geospatial querying.
 
-## ## Project Workflow: From Code to Cloud
+    [x] 1A: Build Ingestion Script: A robust Python script performs efficient, incremental data loads from the NYC OpenData API.
 
-1.  **Local Development:** The project can be run locally in its entirety using **Docker Compose**, creating a perfect replica of the production environment.
-2.  **Commit & Push:** When a new feature is ready, the code is pushed to **GitHub**.
-3.  **Automated Quality Pipeline:** The push triggers a **GitHub Actions** workflow that automatically scans the code, builds fresh **Docker** images, and runs tests.
-4.  **Automated Deployment:** On a successful merge to the `main` branch, a final pipeline deploys the changes to **AWS** via **Terraform** and **ECS** with zero downtime.
+    [x] 1B: Set up PostGIS Database: A fully containerized PostGIS service is self-initializing and optimized for spatial queries with a GEOGRAPHY type and spatial index.
 
+    [x] 1C: Full Orchestration: All services are orchestrated via docker-compose and configured securely with a .env file.
 
-# NYC 311 Data Visualization Project
+    [ ] 1D: Load Contextual Boundaries: A one-time script to download and load NYC Community District GeoJSON boundaries into the database. (Next Step)
 
-This project is a full-stack web application designed to ingest, store, and visualize 311 complaint data for New York City. It serves as a portfolio piece demonstrating skills in data engineering, backend and frontend development, and DevSecOps practices.
+Phase 2: Backend API & Analytics (The Engine)
 
-## Project Plan & Status
+STATUS: 25% Complete
+This phase focuses on pre-calculating statistics and building the API endpoints to serve processed data to the frontend.
 
-### Phase 1: Data Ingestion
+    [x] 2A: Build "Skeleton" API: A containerized FastAPI service is running, networked with the database, and serving test data.
 
-The goal of this phase is to reliably fetch data from the NYC OpenData API and store it in a persistent database.
+    [ ] 2B: Pre-calculate Baselines: An offline analytics script to calculate the average complaint density for each complaint type within each Community District, stored in a new community_district_stats table.
 
-- [x] **1A: Dockerize the Python Ingestion Script**
-  - Create a `Dockerfile` for the Python script.
-  - Ensure the base image (`python:3.9-slim`) can be pulled and the container builds successfully.
-- [x] **1B: Set up the PostgreSQL Database**
-  - Create a `docker-compose.yml` file.
-  - Define a `postgres` service with a persistent volume for data.
-  - Manage database credentials securely.
-- [x] **1C: Connect Python to Postgres**
-  - Update the Python script to connect to the Postgres container using Docker's internal networking.
-  - Implement the logic to insert the fetched 311 data into the database.
+    [ ] 2C: Augment Data with H3: Update the ingestion script and database to map every 311 complaint to a fixed H3 hexagon ID for instant aggregation.
 
-### Phase 2: Backend API
+    [ ] 2D: Build Core API Endpoints:
 
-This phase involves creating a simple API to serve the stored data to a front-end client.
+        Create the GET /api/v1/heatmap endpoint to return scored, color-coded hexagon data for the current map view.
 
-- [ ] **2A: Build a "Skeleton" API**
-  - Create a new service in `docker-compose.yml` for the API (e.g., using Flask or FastAPI).
-  - Implement a single, simple endpoint (e.g., `/api/complaints/latest`) that retrieves and returns the 10 most recent complaints from the Postgres database.
-- [ ] **2B: Expand API Functionality**
-  - Add more complex endpoints as needed by the front-end (e.g., filtering by borough, complaint type, or date range).
+        Create the GET /api/v1/scorecard endpoint to return detailed statistics for a specific Community District.
 
-### Phase 3: Frontend UI
+Phase 3: Frontend Interface (The Visualization)
 
-This phase focuses on building a user interface to visualize the data provided by the API.
+STATUS: 60% Complete
+This phase focuses on building the complete user experience for visualizing and interacting with the data.
 
-- [ ] **3A: Build a "Skeleton" Frontend**
-  - Create a new service in `docker-compose.yml` for a simple frontend application.
-  - Create a basic page that successfully calls the `/api/complaints/latest` endpoint and displays the data in a list or table.
-- [ ] **3B: Develop Visualizations**
-  - Add maps, charts, and graphs to visualize the 311 data.
-  - Implement UI controls (like dropdowns and date pickers) to interact with the expanded API functionality.
+    [x] 3A: Set up Frontend & Map: A containerized React + Vite application is running with a fully interactive, custom-styled vector map powered by MapLibre GL and Maptiler.
 
-### Phase 4: Orchestration & Security (DevSecOps)
+    [x] 3B: Implement Address Search: A fully functional search bar with debounced autocomplete suggestions is implemented. The search is constrained to NYC and uses a clean, user-friendly address format.
 
+    [x] 3C: Implement Bounded Pan: The map view is locked to the NYC area to improve usability and manage tile usage.
+
+    [ ] 3D: Render Hexagon Layer: Use MapLibre's Source and Layer components to fetch and render the GeoJSON data from the /heatmap endpoint, with colors determined by the data's "score."
+
+    [ ] 3E: Build the "Scorecard" UI: Create a SidePanel component that appears after a search, fetches data from the /scorecard endpoint, and displays the "above/below average" statistics.
+
+Phase 4: CI/CD & Security (DevSecOps)
+
+STATUS: 10% Complete
 This ongoing phase involves ensuring the entire application is robust, secure, and easy to manage.
 
-- [ ] **4A: Full Orchestration**
-  - Ensure all services (`ingestor`, `db`, `api`, `frontend`) can be launched and networked together with a single `docker compose up` command.
-- [ ] **4B: Security Hardening**
-  - Scan container images for vulnerabilities.
-  - Implement proper secrets management for all credentials (e.g., using Docker secrets or a vault).
-  - Configure container networking for least-privilege access.
-- [ ] **4C: CI/CD Pipeline (Optional)**
-  - Set up a basic CI/CD pipeline (e.g., using GitHub Actions) to automatically build, test, and deploy the application.
+    [ ] 4A: Security Hardening: Scan container images for vulnerabilities and implement proper secrets management.
+
+    [ ] 4B: CI/CD Pipeline (Optional): Set up a basic CI/CD pipeline (e.g., using GitHub Actions) to automatically build, test, and deploy the application.
