@@ -1,4 +1,4 @@
-/* Basic reset to remove default browser styles */
+/* Basic reset */
 body,
 html,
 #root {
@@ -9,9 +9,20 @@ html,
     font-family: sans-serif;
 }
 
-/* Make our main app container and the map itself fill the screen */
-#app-container,
-.leaflet-container {
-    width: 100%;
+/* Use a flexbox column layout for our main app container.
+  This makes the Header take its natural height, and the map
+  container will expand to fill the rest of the space.
+*/
+#app-container {
+    display: flex;
+    flex-direction: column;
     height: 100%;
+    width: 100%;
+}
+
+/* Ensure the leaflet map fills its container */
+.leaflet-container {
+    /* This is the key change: it tells the map to grow and fill available space */
+    flex-grow: 1;
+    width: 100%;
 }

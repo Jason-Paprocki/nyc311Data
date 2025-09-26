@@ -1,0 +1,45 @@
+/* Main header container */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    /* Ensures the header stays on top of the map */
+    position: relative;
+    z-index: 1000;
+}
+
+/* Logo and title styles */
+.logo-container h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+/* Search bar container */
+.search-container {
+    flex-grow: 1;
+    margin-left: 40px;
+    display: flex;
+    justify-content: center;
+}
+
+/* Search input field styles */
+.search-container input {
+    width: 100%;
+    max-width: 600px;
+    padding: 12px 15px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 25px; /* Pill shape */
+    transition: all 0.2s ease-in-out;
+}
+
+/* Style for when the user clicks into the search bar */
+.search-container input:focus {
+    outline: none;
+    border-color: #0078ff;
+    box-shadow: 0 0 5px rgba(0, 120, 255, 0.5);
+}
