@@ -34,9 +34,22 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./api:/app  # Mounts your local code for live reloading
+      - ./api:/app
     depends_on:
       - db
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: nyc_311_frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Prevents host node_modules from overwriting container's
     networks:
       - app-network
 
