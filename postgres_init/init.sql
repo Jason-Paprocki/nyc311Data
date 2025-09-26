@@ -1,7 +1,7 @@
--- Enable the PostGIS extension to add support for geographic objects
+-- Enable the PostGIS extension
 CREATE EXTENSION IF NOT EXISTS postgis;
 
--- Create the main table to store 311 service complaints
+-- Create the complaints table
 CREATE TABLE IF NOT EXISTS complaints (
     unique_key VARCHAR(50) PRIMARY KEY,
     created_date TIMESTAMP WITH TIME ZONE,
@@ -9,14 +9,22 @@ CREATE TABLE IF NOT EXISTS complaints (
     agency VARCHAR(50),
     complaint_type VARCHAR(255),
     descriptor TEXT,
-    location GEOGRAPHY(Point, 4326)
+    location GEOGRAPHY(Point, 4326),
+    -- --- NEW ---
+    -- Column to store the pre-calculated H3 index at resolution 9
+    h3_index BIGINT
 );
 
+-- Create indexes
 CREATE INDEX IF NOT EXISTS complaints_location_idx ON complaints USING GIST (location);
 CREATE INDEX IF NOT EXISTS complaints_created_date_idx ON complaints (created_date);
 CREATE INDEX IF NOT EXISTS complaints_complaint_type_idx ON complaints (complaint_type);
+-- --- NEW ---
+-- Index on the h3_index for extremely fast hexagon lookups
+CREATE INDEX IF NOT EXISTS complaints_h3_idx ON complaints (h3_index);
 
--- Create a table to store the NYC Community District boundaries
+
+-- Create the community_districts table
 CREATE TABLE IF NOT EXISTS community_districts (
     boro_cd VARCHAR(3) PRIMARY KEY,
     geometry GEOGRAPHY(MultiPolygon, 4326)
@@ -24,13 +32,11 @@ CREATE TABLE IF NOT EXISTS community_districts (
 
 CREATE INDEX IF NOT EXISTS community_districts_geometry_idx ON community_districts USING GIST (geometry);
 
--- --- NEW TABLE ---
--- This table will store the pre-calculated statistics for each district.
+-- Create the community_district_stats table
 CREATE TABLE IF NOT EXISTS community_district_stats (
     boro_cd VARCHAR(3),
     complaint_type VARCHAR(255),
     complaint_count INTEGER,
     density_per_sq_km DOUBLE PRECISION,
-    -- A composite primary key ensures each district/complaint_type pair is unique.
     PRIMARY KEY (boro_cd, complaint_type)
 );

@@ -13,9 +13,14 @@ shift
 
 # Main command logic
 if [ "$COMMAND" == "--up" ]; then
-    echo "🚀 Starting up services..."
-    # Start all services defined in docker-compose.yml in the background
-    docker compose up -d --build
+    echo "🚀 Building images..."
+    # First, build the images. This will show all build logs.
+    #docker compose build --no-cache 
+    docker compose build
+
+    echo "🚀 Starting up services in the background..."
+    # Then, start the services in detached mode without rebuilding.
+    docker compose up -d
     echo "✅ Services are up and running."
 
 elif [ "$COMMAND" == "--down" ]; then

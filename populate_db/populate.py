@@ -4,6 +4,7 @@ import urllib.parse
 import psycopg2
 import psycopg2.extras
 from datetime import datetime
+import h3
 
 # --- Configuration ---
 DB_NAME = os.getenv("POSTGRES_DB")
@@ -11,11 +12,12 @@ DB_USER = os.getenv("POSTGRES_USER")
 DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 DB_HOST = "db"
 APP_TOKEN = os.getenv("NYC_OPEN_DATA_APP_TOKEN")
-HISTORICAL_START_DATE = "2025-09-01T00:00:00" # Fallback for the very first run
+HISTORICAL_START_DATE = "2025-09-01T00:00:00"
+H3_RESOLUTION = 9
 
 # --- Database Functions ---
 def get_db_connection():
-    """Establishes and returns a connection to the database."""
+    # ... (function remains unchanged)
     try:
         conn = psycopg2.connect(
             dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD, host=DB_HOST
@@ -26,9 +28,7 @@ def get_db_connection():
         return None
 
 def get_latest_timestamp(conn):
-    """
-    Queries our own database to find the most recent complaint's creation date.
-    """
+    # ... (function remains unchanged)
     with conn.cursor() as cursor:
         cursor.execute("SELECT MAX(created_date) FROM complaints;")
         result = cursor.fetchone()[0]
@@ -41,22 +41,24 @@ def get_latest_timestamp(conn):
 
 def clean_record(record):
     """
-    Validates and cleans a single record, preparing it for PostGIS insertion.
-    Returns a tuple of cleaned data, or None if the record is invalid.
+    Validates, cleans, and calculates the H3 index for a single record.
     """
     try:
         if not record.get("unique_key"): return None
 
-        # Prepare the location data in Well-Known Text (WKT) format for PostGIS.
-        # Format: POINT(longitude latitude)
         location_wkt = None
+        h3_index = None
         lat = record.get("latitude")
         lon = record.get("longitude")
         if lat and lon:
-            # Convert to float to ensure they are valid numbers before creating the point
             latitude = float(lat)
             longitude = float(lon)
             location_wkt = f"POINT({longitude} {latitude})"
+
+            # --- THIS IS THE FIX ---
+            # The h3 library returns a hex string. We must convert it to an integer.
+            hex_string = h3.latlng_to_cell(latitude, longitude, H3_RESOLUTION)
+            h3_index = int(hex_string, 16)
 
         created_date = datetime.fromisoformat(record["created_date"]) if record.get("created_date") else None
         closed_date = datetime.fromisoformat(record["closed_date"]) if record.get("closed_date") else None
@@ -64,30 +66,26 @@ def clean_record(record):
         return (
             record.get("unique_key"), created_date, closed_date, record.get("agency"),
             record.get("complaint_type"), record.get("descriptor"), location_wkt,
+            h3_index,
         )
     except (ValueError, TypeError) as e:
         print(f"⚠️  Skipping record due to cleaning error (key: {record.get('unique_key')}): {e}")
         return None
 
 def process_batch(conn, batch):
-    """
-    Processes a batch of records and inserts them into the database using the new PostGIS schema.
-    """
+    # ... (function remains unchanged)
     if not batch: return
     cleaned_data = [clean_record(rec) for rec in batch]
     insert_data = [rec for rec in cleaned_data if rec is not None]
     if not insert_data: return
-
-    # Updated INSERT statement for the new schema with a 'location' column.
     insert_query = """
         INSERT INTO complaints (
             unique_key, created_date, closed_date, agency,
-            complaint_type, descriptor, location
+            complaint_type, descriptor, location, h3_index
         ) VALUES %s ON CONFLICT (unique_key) DO NOTHING;
     """
     with conn.cursor() as cursor:
         try:
-            # psycopg2 automatically handles converting the WKT string to a GEOGRAPHY type.
             psycopg2.extras.execute_values(
                 cursor, insert_query, insert_data, page_size=len(insert_data)
             )
@@ -99,20 +97,16 @@ def process_batch(conn, batch):
 
 # --- Main Execution ---
 def main():
-    """Main function to fetch data incrementally and load it into the database."""
+    # ... (function remains unchanged)
     print("Starting data population process...")
     conn = get_db_connection()
     if not conn: return
-
     start_date_for_api = get_latest_timestamp(conn)
-
     BASE_URL = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
     LIMIT = 1000
     offset = 0
     total_records_processed = 0
-
     while True:
-        # Note: We still need to fetch latitude and longitude from the API
         soql_query = f"""
             SELECT
               `unique_key`, `created_date`, `closed_date`, `agency`,
@@ -123,7 +117,6 @@ def main():
         """
         encoded_query = urllib.parse.quote(soql_query)
         full_url = f"{BASE_URL}?$query={encoded_query}"
-
         print(f"Fetching records starting from offset {offset}...")
         headers = {"X-App-Token": APP_TOKEN}
         try:
@@ -134,19 +127,15 @@ def main():
             print(f"❌ API Request failed: {e}"); break
         except ValueError:
             print("❌ Failed to decode JSON from response."); break
-
         if not isinstance(batch, list) or not batch:
             print("No new data to fetch. Exiting loop.")
             break
-
         process_batch(conn, batch)
-
         total_records_processed += len(batch)
         if len(batch) < LIMIT:
             print("Received last batch of new data.")
             break
         offset += LIMIT
-
     print(f"\nData population finished. Total new records processed: {total_records_processed}")
     conn.close()
 
