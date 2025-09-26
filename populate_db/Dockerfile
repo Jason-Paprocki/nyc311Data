@@ -7,11 +7,15 @@ WORKDIR /app
 # Copy the requirements file into the container
 COPY requirements.txt .
 
-# Install the Python dependencies
+# [cite_start]Install the Python dependencies [cite: 3]
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the main script into the container
+# Copy the main scripts and data file into the container
 COPY populate.py .
+COPY load_districts.py .
+COPY community_districts.geojson .
 
-# Command to run when the container starts
-CMD ["python", "populate.py"]
+# [cite_start]Command to run when the container starts [cite: 4]
+# First, run the one-time district loading script.
+# If it succeeds (&&), then run the main data population script.
+CMD python load_districts.py && python populate.py

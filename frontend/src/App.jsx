@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl/maplibre";
 import * as turf from "@turf/turf";
+import { WebMercatorViewport } from "@math.gl/web-mercator";
 import Header from "./components/Header";
-import { highlightedDistrictStyle } from "./mapStyles"; // We only need the highlight style now
+import { highlightedDistrictStyle } from "./mapStyles";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./App.css";
 
@@ -56,17 +57,39 @@ function App() {
         }
       }
 
-      setHighlightedDistrict(foundDistrict);
-      setViewState({ ...newPos, zoom: 14 });
-      setMarkerPosition(newPos);
+      if (foundDistrict) {
+        const [minLng, minLat, maxLng, maxLat] = turf.bbox(foundDistrict);
+
+        // --- THIS IS THE FIX ---
+        // We must provide the current viewport dimensions (width, height) for the calculation.
+        const viewport = new WebMercatorViewport({
+          ...viewState,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        });
+
+        const { longitude, latitude, zoom } = viewport.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          { padding: 40 },
+        );
+
+        setViewState({ longitude, latitude, zoom });
+        setHighlightedDistrict(foundDistrict);
+        setMarkerPosition(newPos);
+      } else {
+        setViewState({ ...newPos, zoom: 14 });
+        setHighlightedDistrict(null);
+        setMarkerPosition(newPos);
+      }
     } else {
       alert("Address not found or district data not loaded yet.");
       setHighlightedDistrict(null);
     }
   };
 
-  // --- THIS IS THE CORRECTED PART ---
-  // We now correctly use the Maptiler URL directly, not the old tileLayers object.
   const mapStyleUrl = `https://api.maptiler.com/maps/019986e1-bffa-78b0-a4af-bca020aa39ae/style.json?key=${import.meta.env.VITE_MAPTILER_API}`;
 
   return (
@@ -86,7 +109,6 @@ function App() {
             anchor="bottom"
           />
         )}
-
         {highlightedDistrict && (
           <Source type="geojson" data={highlightedDistrict}>
             <Layer {...highlightedDistrictStyle} />
