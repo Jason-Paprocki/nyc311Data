@@ -1,0 +1,17 @@
+/* Basic reset to remove default browser styles */
+body,
+html,
+#root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: sans-serif;
+}
+
+/* Make our main app container and the map itself fill the screen */
+#app-container,
+.leaflet-container {
+    width: 100%;
+    height: 100%;
+}

@@ -1,42 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React from "react";
+import { MapContainer, TileLayer } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import "./App.css"; // We'll create this next to style the map
 
 function App() {
-  const [latestComplaints, setLatestComplaints] = useState(null);
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // This function is called when the component first loads.
-    const fetchLatestComplaints = async () => {
-      try {
-        // We use '/api' here, which Vite will proxy to our backend.
-        const response = await fetch('/api/v1/complaints/latest');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setLatestComplaints(data);
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchLatestComplaints();
-  }, []); // The empty array ensures this effect runs only once.
+  // Coordinates for New York City
+  const position = [40.7128, -74.006];
 
   return (
-    <div>
-      <h1>NYC 311 Data Explorer</h1>
-      <h2>Latest Complaints</h2>
-      {isLoading && <p>Loading data...</p>}
-      {error && <p style={{ color: 'red' }}>Error fetching data: {error}</p>}
-      {latestComplaints && (
-        <pre style={{ background: '#f4f4f4', padding: '1rem', borderRadius: '5px' }}>
-          {JSON.stringify(latestComplaints, null, 2)}
-        </pre>
-      )}
+    <div id="app-container">
+      {/* The MapContainer component is the root of the map */}
+      <MapContainer center={position} zoom={11} scrollWheelZoom={true}>
+        {/* The TileLayer is the base map image (e.g., OpenStreetMap) */}
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+      </MapContainer>
     </div>
   );
 }
