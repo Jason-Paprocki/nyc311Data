@@ -24,6 +24,20 @@ services:
     networks:
       - app-network
 
+  # --- NEW SERVICE ---
+  # This "one-shot" service runs our analytics script and then exits.
+  analytics:
+    build:
+      context: ./analytics
+    container_name: nyc_311_analytics
+    env_file:
+      - .env
+    depends_on:
+      # It waits for the main data population to finish before running.
+      - populate_db
+    networks:
+      - app-network
+
   api:
     build:
       context: ./api
@@ -36,7 +50,10 @@ services:
     volumes:
       - ./api:/app
     depends_on:
-      - db
+      # --- MODIFIED ---
+      # The API now waits for the analytics service to complete.
+      # This creates the startup chain: db -> populate_db -> analytics -> api
+      - analytics
     networks:
       - app-network
 
@@ -51,7 +68,7 @@ services:
       - "5173:5173"
     volumes:
       - ./frontend:/app
-      - /app/node_modules # Prevents host node_modules from overwriting container's
+      - /app/node_modules
     networks:
       - app-network
 
