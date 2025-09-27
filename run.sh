@@ -15,8 +15,8 @@ shift
 if [ "$COMMAND" == "--up" ]; then
     echo "🚀 Building images..."
     # First, build the images. This will show all build logs.
-    #docker compose build --no-cache 
-    docker compose build
+    docker compose build --no-cache 
+    #docker compose build
 
     echo "🚀 Starting up services in the background..."
     # Then, start the services in detached mode without rebuilding.

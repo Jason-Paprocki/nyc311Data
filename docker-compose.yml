@@ -47,8 +47,8 @@ services:
       - .env
     ports:
       - "8000:8000"
-    volumes:
-      - ./api:/app
+    #volumes:
+    #  - ./api:/app
     depends_on:
       # --- MODIFIED ---
       # The API now waits for the analytics service to complete.
