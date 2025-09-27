@@ -103,7 +103,7 @@ def main():
     if not conn: return
     start_date_for_api = get_latest_timestamp(conn)
     BASE_URL = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
-    LIMIT = 1000
+    LIMIT = 10000
     offset = 0
     total_records_processed = 0
     while True:
