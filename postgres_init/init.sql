@@ -1,7 +1,7 @@
 -- Enable the PostGIS extension
 CREATE EXTENSION IF NOT EXISTS postgis;
 
--- Create the complaints table
+-- Create the complaints table (RESTORED TO ORIGINAL STRUCTURE)
 CREATE TABLE IF NOT EXISTS complaints (
     unique_key VARCHAR(50) PRIMARY KEY,
     created_date TIMESTAMP WITH TIME ZONE,
@@ -10,17 +10,13 @@ CREATE TABLE IF NOT EXISTS complaints (
     complaint_type VARCHAR(255),
     descriptor TEXT,
     location GEOGRAPHY(Point, 4326),
-    -- --- NEW ---
-    -- Column to store the pre-calculated H3 index at resolution 9
     h3_index BIGINT
 );
 
--- Create indexes
+-- Create indexes for complaints table
 CREATE INDEX IF NOT EXISTS complaints_location_idx ON complaints USING GIST (location);
 CREATE INDEX IF NOT EXISTS complaints_created_date_idx ON complaints (created_date);
 CREATE INDEX IF NOT EXISTS complaints_complaint_type_idx ON complaints (complaint_type);
--- --- NEW ---
--- Index on the h3_index for extremely fast hexagon lookups
 CREATE INDEX IF NOT EXISTS complaints_h3_idx ON complaints (h3_index);
 
 
@@ -40,3 +36,11 @@ CREATE TABLE IF NOT EXISTS community_district_stats (
     density_per_sq_km DOUBLE PRECISION,
     PRIMARY KEY (boro_cd, complaint_type)
 );
+
+-- Create the NEW table for defining categories
+CREATE TABLE IF NOT EXISTS complaint_categories (
+    complaint_type VARCHAR(255) PRIMARY KEY,
+    category VARCHAR(255) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS complaint_categories_category_idx ON complaint_categories(category);
