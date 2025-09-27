@@ -1,28 +1,78 @@
-/* Basic reset */
-body,
-html,
-#root {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    font-family: sans-serif;
-}
-
-/* Use a flexbox column layout for our main app container.
-  This makes the Header take its natural height, and the map
-  container will expand to fill the rest of the space.
-*/
 #app-container {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    width: 100%;
+    height: 100vh;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+        sans-serif;
+    background-color: #f0f2f5;
 }
 
-/* Ensure the leaflet map fills its container */
-.leaflet-container {
-    /* This is the key change: it tells the map to grow and fill available space */
+/* NEW: Style for the map container when loading */
+#map-wrapper {
     flex-grow: 1;
-    width: 100%;
+    position: relative; /* Needed for overlay */
+}
+
+.map-container {
+    transition: opacity 0.3s ease-in-out;
+}
+
+.map-container.loading {
+    opacity: 0.7;
+}
+
+.category-selector {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 8px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #dee2e6;
+    gap: 8px;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 10;
+}
+
+.category-btn {
+    padding: 8px 16px;
+    border: 1px solid #ced4da;
+    border-radius: 20px;
+    background-color: #f8f9fa;
+    color: #495057;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    outline: none;
+    font-size: 14px;
+}
+
+.category-btn:hover {
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.category-btn.selected {
+    background-color: #007bff;
+    color: #ffffff;
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.category-btn.selected:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+/* NEW: Style for disabled buttons */
+.category-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.category-btn:disabled:hover {
+    border-color: #ced4da;
+    color: #495057;
 }

@@ -37,10 +37,12 @@ CREATE TABLE IF NOT EXISTS community_district_stats (
     PRIMARY KEY (boro_cd, complaint_type)
 );
 
--- Create the NEW table for defining categories
 CREATE TABLE IF NOT EXISTS complaint_categories (
     complaint_type VARCHAR(255) PRIMARY KEY,
-    category VARCHAR(255) NOT NULL
+    category VARCHAR(255) NOT NULL,
+    -- NEW: Column to control frontend display order
+    sort_order INTEGER DEFAULT 99
 );
 
 CREATE INDEX IF NOT EXISTS complaint_categories_category_idx ON complaint_categories(category);
+CREATE INDEX IF NOT EXISTS complaint_categories_sort_order_idx ON complaint_categories(sort_order);
