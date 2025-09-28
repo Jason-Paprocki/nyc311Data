@@ -3,7 +3,6 @@ Project Outline: NYC 311 Explorer
 The goal is to create an advanced, interactive heatmap that visualizes NYC 311 complaint data. The system is designed to be performant, intuitive, and provide meaningful, context-aware insights by moving beyond simple data representation.
 
 Core Data Visualization & Logic
-
 This section covers the backend processing and the "engine" that drives the main visualization.
 
 Color Scale Engine (The "Smart Scale")
