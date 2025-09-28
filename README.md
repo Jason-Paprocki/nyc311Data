@@ -1,83 +1,109 @@
-NYC 311 Data Visualization Project
+Project Outline: NYC 311 Explorer
 
-This project is a full-stack web application designed to ingest, process, and visualize 311 complaint data for New York City using a sophisticated geospatial approach. It demonstrates skills in data engineering, backend and frontend development, and modern DevSecOps practices.
+The goal is to create an advanced, interactive heatmap that visualizes NYC 311 complaint data. The system is designed to be performant, intuitive, and provide meaningful, context-aware insights by moving beyond simple data representation.
 
-Project Vision
+Core Data Visualization & Logic
 
-The final application will provide users with an interactive, high-performance map interface to explore NYC 311 complaint data. Key features include:
+This section covers the backend processing and the "engine" that drives the main visualization.
 
-    Hexagonal Heatmap: A dynamic, color-coded hexagonal grid visualizing complaint density across the city.
+Color Scale Engine (The "Smart Scale")
 
-    Address Search: An autocomplete-enabled search bar to instantly navigate to any address in NYC.
+    Concept: To solve the "population density" problem, the color of a hexagon is not based on a fixed, primitive scale. Instead, its color represents its rank compared to all other hexagons in the city. This scale is calculated dynamically.
 
-    Contextual "Scorecard": A side panel that provides at-a-glance statistics for a searched area, comparing local complaint levels to the Community District average.
+    Implementation Logic (Backend / Scheduled Job):
 
-    Custom Map Styling: A clean, minimalist vector map designed for data visualization, with all unnecessary clutter removed.
+        Scheduled Job: Once a day, a background process runs.
 
-Technology Stack
+        Calculate Distribution: The job fetches the complaint count for every single hexagon across the city for the last 30 days.
 
-    Data Pipeline: Python, Docker
+        Define Brackets: It calculates the percentile boundaries from this data. For example:
 
-    Database: PostgreSQL with PostGIS for geospatial analysis
+            Low (Green): The bottom 50% of hexagons (e.g., those with 0-8 complaints).
 
-    Backend: FastAPI
+            Medium (Yellow): Hexagons between the 50th and 85th percentile (e.g., 9-45 complaints).
 
-    Frontend: React, Vite, MapLibre GL JS for vector map rendering
+            High (Red): The top 15% of all hexagons (e.g., 46+ complaints).
 
-    Geospatial: H3 for hexagonal grid system, Maptiler for custom map styles, Nominatim for geocoding
+        Store Boundaries: These calculated boundaries (8 and 45 in this example) are saved. The API will use these numbers to categorize hexagons without having to recalculate anything on the fly.
 
-Project Plan & Status
+The Historical Trend Layer
 
-Phase 1: Data Pipeline & Storage (The Foundation)
+    Concept: To show not just the current state but also the direction of change, we'll encode a historical trend into the color of each hexagon.
 
-STATUS: 95% Complete
-The goal is to reliably fetch, store, and structure NYC data for high-performance geospatial querying.
+    Implementation Logic (Backend):
 
-    [x] 1A: Build Ingestion Script: A robust Python script performs efficient, incremental data loads from the NYC OpenData API.
+        When the API receives a request for heatmap data, it performs two counts for each hexagon:
 
-    [x] 1B: Set up PostGIS Database: A fully containerized PostGIS service is self-initializing and optimized for spatial queries with a GEOGRAPHY type and spatial index.
+            Current Period: Complaints in the last 30 days.
 
-    [x] 1C: Full Orchestration: All services are orchestrated via docker-compose and configured securely with a .env file.
+            Previous Period: Complaints in the same 30-day period last year (to account for seasonality).
 
-    [ ] 1D: Load Contextual Boundaries: A one-time script to download and load NYC Community District GeoJSON boundaries into the database. (Next Step)
+        The API compares the two counts to determine a trend status: Increasing, Stable, or Decreasing.
 
-Phase 2: Backend API & Analytics (The Engine)
+        The final API response for each hexagon will include its level (Low, Medium, or High) and its trend.
 
-STATUS: 25% Complete
-This phase focuses on pre-calculating statistics and building the API endpoints to serve processed data to the frontend.
+Frontend Color Rendering (The 9-Color System)
 
-    [x] 2A: Build "Skeleton" API: A containerized FastAPI service is running, networked with the database, and serving test data.
+    Concept: Combine the level and trend into a single, intuitive color using three shades for each primary color.
 
-    [ ] 2B: Pre-calculate Baselines: An offline analytics script to calculate the average complaint density for each complaint type within each Community District, stored in a new community_district_stats table.
+    Implementation Logic (Frontend):
 
-    [ ] 2C: Augment Data with H3: Update the ingestion script and database to map every 311 complaint to a fixed H3 hexagon ID for instant aggregation.
+        The frontend will have a 9-color palette defined.
 
-    [ ] 2D: Build Core API Endpoints:
+        When it receives data for a hexagon, it will use a simple lookup to select the final color:
 
-        Create the GET /api/v1/heatmap endpoint to return scored, color-coded hexagon data for the current map view.
+            level: High, trend: Increasing → Deep Red (Worst case)
 
-        Create the GET /api/v1/scorecard endpoint to return detailed statistics for a specific Community District.
+            level: High, trend: Decreasing → Pale Red (Still bad, but improving)
 
-Phase 3: Frontend Interface (The Visualization)
+            level: Low, trend: Increasing → Deep Green (Good, but getting a little worse)
 
-STATUS: 60% Complete
-This phase focuses on building the complete user experience for visualizing and interacting with the data.
+            level: Low, trend: Decreasing → Pale Green (Best case)
 
-    [x] 3A: Set up Frontend & Map: A containerized React + Vite application is running with a fully interactive, custom-styled vector map powered by MapLibre GL and Maptiler.
+User Interaction & Features
 
-    [x] 3B: Implement Address Search: A fully functional search bar with debounced autocomplete suggestions is implemented. The search is constrained to NYC and uses a clean, user-friendly address format.
+This section covers the interactive features that make the tool powerful for users.
 
-    [x] 3C: Implement Bounded Pan: The map view is locked to the NYC area to improve usability and manage tile usage.
+Address Search & "Smart Radius"
 
-    [ ] 3D: Render Hexagon Layer: Use MapLibre's Source and Layer components to fetch and render the GeoJSON data from the /heatmap endpoint, with colors determined by the data's "score."
+    Concept: The default search radius should intelligently adapt to the local density of the searched address.
 
-    [ ] 3E: Build the "Scorecard" UI: Create a SidePanel component that appears after a search, fetches data from the /scorecard endpoint, and displays the "above/below average" statistics.
+    Implementation Logic:
 
-Phase 4: CI/CD & Security (DevSecOps)
+        User searches an address, which is converted to a latitude/longitude coordinate.
 
-STATUS: 10% Complete
-This ongoing phase involves ensuring the entire application is robust, secure, and easy to manage.
+        The frontend makes a call to a new API endpoint (e.g., /local-density).
 
-    [ ] 4A: Security Hardening: Scan container images for vulnerabilities and implement proper secrets management.
+        The backend calculates a "density score" by counting complaints in the immediate vicinity of the coordinate.
 
-    [ ] 4B: CI/CD Pipeline (Optional): Set up a basic CI/CD pipeline (e.g., using GitHub Actions) to automatically build, test, and deploy the application.
+        Based on the score, the backend returns a suggested physical radius (e.g., 0.25 miles for high density, 0.5 miles for low density).
+
+        The frontend draws a circle with this smart radius and fetches the data for that area.
+
+Radius Slider & Comparison Mode Toggle
+
+    Concept: Give "hardcore users" full control over their analysis.
+
+    Implementation Logic (Frontend):
+
+        Slider: A UI slider will be available after a search. Changing it adjusts the size of the search circle and triggers a new data fetch.
+
+        Toggle: A UI toggle will switch between two color modes:
+
+            "Borough View" (Default): Uses the standard, percentile-based color system. This is for fair, city-wide comparisons.
+
+            "Local View": The frontend takes only the data currently visible, finds the local min/max, and temporarily re-colors the hexagons to highlight hotspots relative to the current view.
+
+Zoom Behavior: Hexagons to Points
+
+    Concept: Switch from an aggregated view (hexagons) to a detailed view (individual points) when the user is zoomed in far enough.
+
+    Implementation Logic (Frontend & Backend):
+
+        The frontend listens for map zoom events.
+
+        Once the zoom level passes a threshold (e.g., zoom level 16), the hexagon layer is hidden.
+
+        The frontend calls a new API endpoint (e.g., /points) to fetch the raw latitude/longitude of individual complaints for the visible area.
+
+        These points are rendered on the map using a clustering library to group dense points into single, numbered circles, preventing the "blob" effect.
