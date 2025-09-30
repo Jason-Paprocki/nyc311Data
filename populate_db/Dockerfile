@@ -13,4 +13,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 # [cite_start]Command to run when the container starts [cite: 4]
 # First, run the one-time district loading script.
 # If it succeeds (&&), then run the main data population script.
-CMD python load_districts.py && python populate.py
+CMD python injest.py && python calculate.py

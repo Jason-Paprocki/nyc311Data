@@ -1,108 +1,62 @@
-Project Outline: NYC 311 Explorer
+### \#\# Updated Project Plan v2.1
 
-The goal is to create an advanced, interactive heatmap that visualizes NYC 311 complaint data. The system is designed to be performant, intuitive, and provide meaningful, context-aware insights by moving beyond simple data representation.
+I've revised the logic for the Historical Trend and the Smart Radius as we discussed. The core goal remains the same.
 
-Core Data Visualization & Logic
-This section covers the backend processing and the "engine" that drives the main visualization.
+**Goal:** To create an advanced, interactive heatmap that visualizes NYC 311 complaint data, providing context-aware insights by balancing per-capita rates with complaint volume.
 
-Color Scale Engine (The "Smart Scale")
+-----
 
-    Concept: To solve the "population density" problem, the color of a hexagon is not based on a fixed, primitive scale. Instead, its color represents its rank compared to all other hexagons in the city. This scale is calculated dynamically.
+### \#\#\#\# Core Visualization Logic
 
-    Implementation Logic (Backend / Scheduled Job):
+This section covers the backend data processing that powers the map's core metric.
 
-        Scheduled Job: Once a day, a background process runs.
+#### The "Weighted Impact Score" Engine
 
-        Calculate Distribution: The job fetches the complaint count for every single hexagon across the city for the last 30 days.
+  * **Concept:** To provide a more nuanced view than simple per-capita or raw counts, the map will be colored based on a **Weighted Impact Score**. This score identifies areas that have both a high rate of complaints relative to their population *and* a significant volume of complaints, filtering out misleading noise from low-population or low-complaint zones.
+  * **Implementation (Backend Scheduled Job):**
+    1.  A daily job fetches the 30-day complaint count (`complaints`) and the stored estimated population (`population`) for every H3 hexagon.
+    2.  It calculates the new metric using the formula: `Impact Score = (complaints / population) * log(complaints + 1)`.
+    3.  It then calculates percentile boundaries (e.g., Low, Medium, High) based on the city-wide distribution of these new scores and saves them for the API.
 
-        Define Brackets: It calculates the percentile boundaries from this data. For example:
+#### The Historical Trend Logic **(REVISED)**
 
-            Low (Green): The bottom 50% of hexagons (e.g., those with 0-8 complaints).
+  * **Concept:** To provide seasonal context, the system will compare the current period to the same period from the previous year. This data will be shown on-demand to keep the main map view clean.
+  * **Implementation (API on User Interaction):**
+    1.  When a user clicks on a hexagon, the API fetches complaint data for two rolling 30-day periods: the most recent 30 days and the same 30-day window from the previous year.
+    2.  It calculates the year-over-year percentage change to determine a trend status. **To prevent misleading alerts from low-volume areas, both a relative and an absolute threshold must be met.**
+          * **Improving:** `< -10%` change AND `> 5` fewer complaints.
+          * **Worsening:** `> 10%` change AND `> 5` more complaints.
+          * **Stable:** All other cases.
+    3.  This trend status, along with a detailed graph, is displayed in a popup or sidebar.
 
-            Medium (Yellow): Hexagons between the 50th and 85th percentile (e.g., 9-45 complaints).
+-----
 
-            High (Red): The top 15% of all hexagons (e.g., 46+ complaints).
+### \#\#\#\# User Interaction & Features
 
-        Store Boundaries: These calculated boundaries (8 and 45 in this example) are saved. The API will use these numbers to categorize hexagons without having to recalculate anything on the fly.
+This section covers the interactive map features for the end-user.
 
-The Historical Trend Layer
+#### Address Search & Smart Radius **(REVISED)**
 
-    Concept: To show not just the current state but also the direction of change, we'll encode a historical trend into the color of each hexagon.
+  * **Concept:** To provide an intelligent, user-centric starting point for exploration, the system will generate an initial search radius based on the proximity of key Points of Interest (POIs), **keeping the user's search as the center point.**
+  * **Implementation:**
+    1.  The user searches for an address, which becomes the `search_center`.
+    2.  The system queries a predefined list of POI categories (e.g., subway stations, grocery stores) within a capped search distance (e.g., 1 mile).
+    3.  **Fallback:** If no POIs are found within the cap, the system defaults to a standard, fixed-radius circle (e.g., 500m).
+    4.  If POIs are found, the system identifies the POI that is **farthest** from the `search_center`.
+    5.  The circle's radius is set to the distance between the `search_center` and this farthest POI. The circle is drawn on the map, centered on the `search_center`.
+    6.  The user can then use a slider or drag handles to manually resize and move the circle.
 
-    Implementation Logic (Backend):
+#### Zoom Behavior: Hexagons to Points
 
-        When the API receives a request for heatmap data, it performs two counts for each hexagon:
+  * **Concept:** Switch from an aggregated hexagon view to a detailed, individual complaint view when the user is zoomed in far enough. This logic remains unchanged.
+  * **Implementation:**
+    1.  When the map's zoom level passes a set threshold, the hexagon layer is hidden.
+    2.  The frontend fetches the raw latitude/longitude of individual complaints for the visible map area.
+    3.  These points are rendered using a clustering library to manage density and maintain performance.
 
-            Current Period: Complaints in the last 30 days.
 
-            Previous Period: Complaints in the same 30-day period last year (to account for seasonality).
+#maptiler link:
+https://cloud.maptiler.com/maps/019986e1-bffa-78b0-a4af-bca020aa39ae/
 
-        The API compares the two counts to determine a trend status: Increasing, Stable, or Decreasing.
-
-        The final API response for each hexagon will include its level (Low, Medium, or High) and its trend.
-
-Frontend Color Rendering (The 9-Color System)
-
-    Concept: Combine the level and trend into a single, intuitive color using three shades for each primary color.
-
-    Implementation Logic (Frontend):
-
-        The frontend will have a 9-color palette defined.
-
-        When it receives data for a hexagon, it will use a simple lookup to select the final color:
-
-            level: High, trend: Increasing → Deep Red (Worst case)
-
-            level: High, trend: Decreasing → Pale Red (Still bad, but improving)
-
-            level: Low, trend: Increasing → Deep Green (Good, but getting a little worse)
-
-            level: Low, trend: Decreasing → Pale Green (Best case)
-
-User Interaction & Features
-
-This section covers the interactive features that make the tool powerful for users.
-
-Address Search & "Smart Radius"
-
-    Concept: The default search radius should intelligently adapt to the local density of the searched address.
-
-    Implementation Logic:
-
-        User searches an address, which is converted to a latitude/longitude coordinate.
-
-        The frontend makes a call to a new API endpoint (e.g., /local-density).
-
-        The backend calculates a "density score" by counting complaints in the immediate vicinity of the coordinate.
-
-        Based on the score, the backend returns a suggested physical radius (e.g., 0.25 miles for high density, 0.5 miles for low density).
-
-        The frontend draws a circle with this smart radius and fetches the data for that area.
-
-Radius Slider & Comparison Mode Toggle
-
-    Concept: Give "hardcore users" full control over their analysis.
-
-    Implementation Logic (Frontend):
-
-        Slider: A UI slider will be available after a search. Changing it adjusts the size of the search circle and triggers a new data fetch.
-
-        Toggle: A UI toggle will switch between two color modes:
-
-            "Borough View" (Default): Uses the standard, percentile-based color system. This is for fair, city-wide comparisons.
-
-            "Local View": The frontend takes only the data currently visible, finds the local min/max, and temporarily re-colors the hexagons to highlight hotspots relative to the current view.
-
-Zoom Behavior: Hexagons to Points
-
-    Concept: Switch from an aggregated view (hexagons) to a detailed view (individual points) when the user is zoomed in far enough.
-
-    Implementation Logic (Frontend & Backend):
-
-        The frontend listens for map zoom events.
-
-        Once the zoom level passes a threshold (e.g., zoom level 16), the hexagon layer is hidden.
-
-        The frontend calls a new API endpoint (e.g., /points) to fetch the raw latitude/longitude of individual complaints for the visible area.
-
-        These points are rendered on the map using a clustering library to group dense points into single, numbered circles, preventing the "blob" effect.
+#servicemap link:
+https://portal.311.nyc.gov/article/?kanumber=KA-01361
