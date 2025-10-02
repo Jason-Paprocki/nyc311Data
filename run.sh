@@ -15,8 +15,8 @@ shift
 if [ "$COMMAND" == "--up" ]; then
     echo "🚀 Building images..."
     # First, build the images. This will show all build logs.
-    #docker compose build --no-cache
-    docker compose build
+    docker compose build --no-cache
+    #docker compose build
 
     echo "🚀 Starting up services in the background..."
     # Then, start the services in detached mode without rebuilding.
@@ -34,6 +34,15 @@ elif [ "$COMMAND" == "--populate" ]; then
     docker compose build populate_db
 
     echo "🔄 Populating the database with the latest 311 data..."
+    docker compose run --rm populate_db
+    echo "✅ Database population script finished."
+elif [ "$COMMAND" == "--reset" ]; then
+    echo "🔄 Deleting all images and restarting..."
+    docker compose down -v
+    docker compose build --no-cache
+    docker compose up -d
+    echo "🔄 Populating the database with the latest 311 data..."
+    sleep 2
     docker compose run --rm populate_db
     echo "✅ Database population script finished."
 

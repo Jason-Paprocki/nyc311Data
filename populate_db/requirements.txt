@@ -1,3 +1,5 @@
-requests
-psycopg2-binary
-h3
+psycopg2-binary==2.9.9
+requests==2.31.0
+h3==4.0.0b1
+geopandas==0.14.4
+pandas

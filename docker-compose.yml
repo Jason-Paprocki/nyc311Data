@@ -1,5 +1,6 @@
 services:
   db:
+    # Use the official, standard PostGIS image
     image: postgis/postgis:15-3.4
     container_name: nyc_311_db
     restart: always
@@ -24,8 +25,6 @@ services:
     networks:
       - app-network
 
-  # --- NEW SERVICE ---
-  # This "one-shot" service runs our analytics script and then exits.
   analytics:
     build:
       context: ./analytics
@@ -33,7 +32,6 @@ services:
     env_file:
       - .env
     depends_on:
-      # It waits for the main data population to finish before running.
       - populate_db
     networks:
       - app-network
@@ -47,12 +45,7 @@ services:
       - .env
     ports:
       - "8000:8000"
-    #volumes:
-    #  - ./api:/app
     depends_on:
-      # --- MODIFIED ---
-      # The API now waits for the analytics service to complete.
-      # This creates the startup chain: db -> populate_db -> analytics -> api
       - analytics
     networks:
       - app-network

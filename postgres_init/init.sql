@@ -1,70 +1,54 @@
--- Enable PostGIS and H3 extensions for geospatial operations
+-- init.sql
+
+-- Enable PostGIS extension, which is required for location/geometry functions.
 CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS h3_postgis;
 
---------------------------------------------------------------------------------
--- RAW DATA TABLES
--- These tables store the raw, unmodified data ingested from external APIs.
---------------------------------------------------------------------------------
-
--- Stores raw 311 complaint data, fetched incrementally.
+-- Stores raw 311 complaint data.
 CREATE TABLE IF NOT EXISTS complaints (
-    unique_key VARCHAR(50) PRIMARY KEY,
-    created_date TIMESTAMP WITH TIME ZONE,
-    agency VARCHAR(50),
-    complaint_type VARCHAR(255),
-    location GEOGRAPHY(Point, 4326),
-    h3_index BIGINT -- H3 index calculated on ingestion
+    unique_key TEXT PRIMARY KEY,
+    created_date TIMESTAMP,
+    closed_date TIMESTAMP,
+    agency TEXT,
+    complaint_type TEXT,
+    descriptor TEXT,
+    location GEOMETRY(Point, 4326),
+    h3_index TEXT
 );
-CREATE INDEX IF NOT EXISTS complaints_created_date_idx ON complaints (created_date);
-CREATE INDEX IF NOT EXISTS complaints_h3_idx ON complaints (h3_index);
 
--- NEW: Stores raw data for active, physical businesses.
+-- Stores business license data.
 CREATE TABLE IF NOT EXISTS businesses (
-    license_nbr VARCHAR(50) PRIMARY KEY,
-    location GEOGRAPHY(Point, 4326),
-    h3_index BIGINT -- H3 index calculated on ingestion
+    license_nbr TEXT PRIMARY KEY,
+    location GEOMETRY(Point, 4326),
+    h3_index TEXT
 );
-CREATE INDEX IF NOT EXISTS businesses_location_idx ON businesses USING GIST (location);
-CREATE INDEX IF NOT EXISTS businesses_h3_idx ON businesses (h3_index);
 
-
---------------------------------------------------------------------------------
--- DIMENSIONAL & AGGREGATE TABLES
--- These tables store processed, aggregated, and enriched data.
---------------------------------------------------------------------------------
-
--- UPGRADED: The central dimension table for hexagons.
--- This table describes the "static" properties of each geographic area.
+-- Master table for H3 hexagons, containing aggregated and static data.
 CREATE TABLE IF NOT EXISTS h3_hex_data (
-    h3_index BIGINT PRIMARY KEY,
-    geometry GEOGRAPHY(Polygon, 4326) NOT NULL,
-    -- Populated from Census data (e.g., from a shapefile)
-    population INTEGER NOT NULL DEFAULT 0,
-    -- NEW: Aggregated count from the `businesses` table
-    business_count INTEGER NOT NULL DEFAULT 0
+    h3_index TEXT PRIMARY KEY,
+    population INTEGER DEFAULT 0,
+    business_count INTEGER DEFAULT 0,
+    geometry GEOMETRY(Polygon, 4326)
 );
-CREATE INDEX IF NOT EXISTS h3_hex_data_geometry_idx ON h3_hex_data USING GIST (geometry);
 
--- UPGRADED: Stores the results of our daily calculations.
--- The final score is now broken into its components for better analysis.
+-- Stores the daily calculated scores for the heatmap.
 CREATE TABLE IF NOT EXISTS h3_daily_stats (
-    h3_index BIGINT NOT NULL,
-    stats_date DATE NOT NULL,
-    complaint_count INTEGER NOT NULL,
-    -- Score based on residential population
+    h3_index TEXT,
+    stats_date DATE,
+    complaint_count INTEGER,
     base_impact_score DOUBLE PRECISION,
-    -- Score based on commercial activity
     activity_score DOUBLE PRECISION,
-    -- The final, combined score for the heatmap
     final_impact_score DOUBLE PRECISION,
     PRIMARY KEY (h3_index, stats_date)
 );
 
--- Maps specific complaint types to broader categories for filtering in the UI.
+-- Maps raw complaint types to broader categories for filtering.
 CREATE TABLE IF NOT EXISTS complaint_categories (
-    complaint_type VARCHAR(255) PRIMARY KEY,
-    category VARCHAR(255) NOT NULL,
-    sort_order INTEGER DEFAULT 99
+    complaint_type TEXT PRIMARY KEY,
+    category TEXT,
+    sort_order INTEGER
 );
-CREATE INDEX IF NOT EXISTS complaint_categories_category_idx ON complaint_categories(category);
+
+-- Create indexes to speed up common queries.
+CREATE INDEX IF NOT EXISTS idx_complaints_created_date ON complaints (created_date);
+CREATE INDEX IF NOT EXISTS idx_complaints_h3_index ON complaints (h3_index);
+CREATE INDEX IF NOT EXISTS idx_businesses_h3_index ON businesses (h3_index);
