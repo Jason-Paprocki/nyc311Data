@@ -75,12 +75,13 @@ function App() {
 
     try {
       // Determine which API endpoint to call based on the current zoom level.
+      // The trailing slash is added to match the backend's expected URL format.
       const endpoint =
         currentZoom < ZOOM_THRESHOLD.CLUSTER
-          ? `/api/v1/heatmap?category=${encodeURIComponent(
+          ? `/api/v1/heatmap/?category=${encodeURIComponent(
               selectedCategory,
             )}&bbox=${bbox}`
-          : `/api/v1/points?category=${encodeURIComponent(
+          : `/api/v1/points/?category=${encodeURIComponent(
               selectedCategory,
             )}&bbox=${bbox}`;
 
@@ -173,7 +174,8 @@ function App() {
     }
   };
 
-  const mapStyleUrl = `https://api.maptiler.com/maps/dataviz-dark/style.json?key=GET_YOUR_OWN_KEY`;
+  // IMPORTANT: Replace "GET_YOUR_OWN_KEY" with an actual API key from a provider like Maptiler or Stadia.
+  const mapStyleUrl = `https://api.maptiler.com/maps/019986e1-bffa-78b0-a4af-bca020aa39ae/style.json?key=${import.meta.env.VITE_MAPTILER_API}`;
 
   return (
     <div id="app-container">
