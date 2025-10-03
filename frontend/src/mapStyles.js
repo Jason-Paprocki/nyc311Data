@@ -13,19 +13,8 @@ export const tileLayers = {
   },
 };
 
-// Style for the highlighted community district boundary
-export const highlightedDistrictStyle = {
-  id: "highlight-district-outline",
-  type: "line",
-  paint: {
-    "line-color": "#007cbf",
-    "line-width": 3,
-    "line-opacity": 0.9,
-  },
-};
-
 // Style for the H3 hexagon heatmap layer with a Green-Orange-Red scale.
-// The "fill-color" uses a "step" expression to create discrete color buckets.
+// Lower "final_impact_score" is better (green), higher is worse (red).
 export const heatmapLayerStyle = {
   id: "heatmap",
   type: "fill",
@@ -35,7 +24,7 @@ export const heatmapLayerStyle = {
       ["get", "final_impact_score"],
       "#2dc937", // Green for scores 0-33
       34,
-      "#fbb429", // Orange for scores 34-66
+      "#fca600", // Orange for scores 34-66
       67,
       "#e51919", // Red for scores 67+
     ],
@@ -52,11 +41,11 @@ export const clusterLayerStyle = {
     "circle-color": [
       "step",
       ["get", "point_count"],
-      "#51bbd6", // Blue for < 100 points
+      "#51bbd6", // Blue for less than 100 points
       100,
       "#f1f075", // Yellow for 100-750 points
       750,
-      "#f28cb1", // Pink for >= 750 points
+      "#f28cb1", // Pink for more than 750 points
     ],
     "circle-radius": ["step", ["get", "point_count"], 20, 100, 30, 750, 40],
   },

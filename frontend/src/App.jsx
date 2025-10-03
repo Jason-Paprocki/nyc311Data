@@ -3,16 +3,17 @@ import Map, { Marker, Source, Layer } from "react-map-gl/maplibre";
 import * as turf from "@turf/turf";
 import { WebMercatorViewport } from "@math.gl/web-mercator";
 
+// Component Imports
 import Header from "./components/Header";
 import CategorySelector from "./components/CategorySelector";
+
+// Style Imports
 import {
-  highlightedDistrictStyle,
   heatmapLayerStyle,
   clusterLayerStyle,
   clusterCountLayerStyle,
   unclusteredPointLayerStyle,
 } from "./mapStyles";
-
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./App.css";
 
@@ -35,33 +36,10 @@ function App() {
     latitude: 40.7128,
     zoom: 11,
   });
-  const [allDistricts, setAllDistricts] = useState(null);
-  const [highlightedDistrict, setHighlightedDistrict] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
   const [pointsData, setPointsData] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Fetch community district boundary data for the search feature on initial load.
-  useEffect(() => {
-    const fetchDistrictData = async () => {
-      try {
-        const response = await fetch(
-          "https://data.cityofnewyork.us/resource/5crt-au7u.json",
-        );
-        const data = await response.json();
-        const features = data.map((district) => ({
-          type: "Feature",
-          geometry: district.the_geom,
-          properties: { boro_cd: district.boro_cd },
-        }));
-        setAllDistricts({ type: "FeatureCollection", features });
-      } catch (error) {
-        console.error("Failed to fetch district data:", error);
-      }
-    };
-    fetchDistrictData();
-  }, []);
 
   // Main data fetching logic, called when map moves or category changes.
   const fetchData = useCallback(async () => {
@@ -74,8 +52,6 @@ function App() {
     const currentZoom = map.getZoom();
 
     try {
-      // Determine which API endpoint to call based on the current zoom level.
-      // The trailing slash is added to match the backend's expected URL format.
       const endpoint =
         currentZoom < ZOOM_THRESHOLD.CLUSTER
           ? `/api/v1/heatmap/?category=${encodeURIComponent(
@@ -85,13 +61,14 @@ function App() {
               selectedCategory,
             )}&bbox=${bbox}`;
 
+      console.log("Attempting to fetch data from endpoint:", endpoint);
+
       const response = await fetch(endpoint);
       if (!response.ok) {
         throw new Error(`API call failed with status: ${response.status}`);
       }
       const data = await response.json();
 
-      // Update the appropriate data state based on the zoom level.
       if (currentZoom < ZOOM_THRESHOLD.CLUSTER) {
         setHeatmapData(data);
         setPointsData(null);
@@ -125,56 +102,24 @@ function App() {
       );
       const data = await response.json();
 
-      if (data && data.length > 0 && allDistricts) {
+      if (data && data.length > 0) {
         const { lat, lon } = data[0];
         const newPos = {
           latitude: parseFloat(lat),
           longitude: parseFloat(lon),
         };
-        const point = turf.point([newPos.longitude, newPos.latitude]);
 
-        // Find which community district the searched point falls into.
-        let foundDistrict = null;
-        for (const district of allDistricts.features) {
-          if (turf.booleanPointInPolygon(point, district.geometry)) {
-            foundDistrict = district;
-            break;
-          }
-        }
-
-        // If a district is found, zoom the map to fit its boundaries.
-        if (foundDistrict) {
-          const [minLng, minLat, maxLng, maxLat] = turf.bbox(foundDistrict);
-          const viewport = new WebMercatorViewport({
-            ...viewState,
-            width: window.innerWidth,
-            height: window.innerHeight,
-          });
-          const { longitude, latitude, zoom } = viewport.fitBounds(
-            [
-              [minLng, minLat],
-              [maxLng, maxLat],
-            ],
-            { padding: 40 },
-          );
-          setViewState({ longitude, latitude, zoom });
-          setHighlightedDistrict(foundDistrict);
-        } else {
-          // If no district is found, just center the map on the point.
-          setViewState({ ...newPos, zoom: 14 });
-          setHighlightedDistrict(null);
-        }
+        // Center the map on the searched point with a closer zoom.
+        setViewState({ ...newPos, zoom: 16 });
         setMarkerPosition(newPos);
       } else {
-        console.warn("Address not found or district data not loaded yet.");
-        setHighlightedDistrict(null);
+        console.warn("Address not found.");
       }
     } catch (error) {
       console.error("Search failed:", error);
     }
   };
 
-  // IMPORTANT: Replace "GET_YOUR_OWN_KEY" with an actual API key from a provider like Maptiler or Stadia.
   const mapStyleUrl = `https://api.maptiler.com/maps/019986e1-bffa-78b0-a4af-bca020aa39ae/style.json?key=${import.meta.env.VITE_MAPTILER_API}`;
 
   return (
@@ -230,13 +175,6 @@ function App() {
               latitude={markerPosition.latitude}
               anchor="bottom"
             />
-          )}
-
-          {/* Highlighted District Layer */}
-          {highlightedDistrict && (
-            <Source type="geojson" data={highlightedDistrict}>
-              <Layer {...highlightedDistrictStyle} />
-            </Source>
           )}
         </Map>
       </div>

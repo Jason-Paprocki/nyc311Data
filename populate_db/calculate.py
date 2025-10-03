@@ -1,4 +1,3 @@
-# calculate.py
 import os
 import math
 import psycopg2

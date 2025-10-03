@@ -4,13 +4,9 @@ from psycopg2.extras import RealDictCursor
 import psycopg2
 from typing import List, Dict, Any
 
-# --- Router Initialization ---
-# This creates a new 'router' which will be imported and included by the main api.py
 router = APIRouter()
 
 
-# --- Database Connection ---
-# In a larger app, this might be in a shared 'database.py' or 'utils.py' file.
 def get_db_connection():
     """Establishes a connection to the database and returns it."""
     try:
@@ -22,20 +18,20 @@ def get_db_connection():
         )
         return conn
     except psycopg2.OperationalError as e:
-        # Let FastAPI handle this as a generic server error.
+        # This error happens if the API container cannot reach the DB container.
+        print(f"🔴 DATABASE CONNECTION FAILED: {e}")
         raise HTTPException(status_code=500, detail=f"Database connection error: {e}")
 
 
-# --- API Endpoint Definition ---
-@router.get("/", response_model=List[Dict[str, Any]])
+@router.get("", response_model=List[Dict[str, Any]])
 def get_complaint_categories():
     """
     Retrieves a list of all complaint categories, sorted for display.
-    This endpoint now aligns with the project requirements by returning
-    both the category name and its sort order.
     """
-    # This SQL query is updated to fetch the 'sort_order' and group by it,
-    # which matches the format required by the frontend.
+    # --- ADDED FOR DEBUGGING ---
+    print("✅ Request received for /categories endpoint.")
+    # --- END DEBUGGING ADD ---
+
     query = """
         SELECT
             category,
@@ -47,16 +43,20 @@ def get_complaint_categories():
     """
     conn = get_db_connection()
     try:
-        # Use a RealDictCursor to get results as a list of dictionaries
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(query)
             results = cursor.fetchall()
+            # --- ADDED FOR DEBUGGING ---
+            print(f"✅ Query successful, found {len(results)} categories.")
+            # --- END DEBUGGING ADD ---
     except Exception as e:
-        print(f"Database query failed in get_complaint_categories: {e}")
+        # --- MODIFIED FOR DEBUGGING ---
+        # This will now print the *exact* SQL error to the logs.
+        print(f"❌ DATABASE QUERY FAILED: {e}")
+        # --- END DEBUGGING MODIFICATION ---
         raise HTTPException(status_code=500, detail="Failed to retrieve categories.")
     finally:
         if conn is not None:
             conn.close()
 
-    # If no results are found, return an empty list as per the response model.
     return results if results is not None else []

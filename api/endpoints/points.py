@@ -24,7 +24,7 @@ def get_db_connection():
 
 
 # --- API Endpoint Definition ---
-@router.get("/", response_model=Dict[str, Any])
+@router.get("", response_model=Dict[str, Any])
 def get_points_data(
     category: str = Query(..., description="The complaint category to filter by."),
     bbox: str = Query(

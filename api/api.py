@@ -1,7 +1,7 @@
 import os
 import importlib.util
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware  # Import the CORS middleware
+from fastapi.middleware.cors import CORSMiddleware  # << ENSURE THIS IS IMPORTED
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
@@ -11,16 +11,13 @@ app = FastAPI(
 )
 
 # --- CORS Middleware Configuration ---
-# This is the new section that fixes the CORS error.
-# It tells the browser that it's safe to allow requests from web pages.
+# This is the section that fixes the error.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "*"
-    ],  # Allows all origins. For production, you might want to restrict this.
+    allow_origins=["*"],  # Allows all origins for development
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, etc.).
-    allow_headers=["*"],  # Allows all headers.
+    allow_methods=["*"],  # Allows all HTTP methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 # --- Dynamic Router Loading ---

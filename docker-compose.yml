@@ -1,6 +1,5 @@
 services:
   db:
-    # Use the official, standard PostGIS image
     image: postgis/postgis:15-3.4
     container_name: nyc_311_db
     restart: always
@@ -25,17 +24,6 @@ services:
     networks:
       - app-network
 
-  analytics:
-    build:
-      context: ./analytics
-    container_name: nyc_311_analytics
-    env_file:
-      - .env
-    depends_on:
-      - populate_db
-    networks:
-      - app-network
-
   api:
     build:
       context: ./api
@@ -46,7 +34,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - analytics
+      - populate_db
     networks:
       - app-network
 
@@ -62,6 +50,8 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    depends_on:
+      - api
     networks:
       - app-network
 

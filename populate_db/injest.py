@@ -9,7 +9,7 @@ import h3
 import geopandas as gpd
 
 # --- Configuration ---
-HISTORICAL_START_DATE = "2025-08-01T00:00:00"
+HISTORICAL_START_DATE = "2025-09-01T00:00:00"
 H3_RESOLUTION = 9
 API_BATCH_SIZE = 50000
 

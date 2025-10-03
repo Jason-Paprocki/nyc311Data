@@ -68,16 +68,13 @@ def get_heatmap_data(
     if not hex_strings_in_view:
         return {"type": "FeatureCollection", "features": []}
 
-    # Convert hex strings to integers for the database query
-    hex_ints_for_query = [h3.str_to_int(h) for h in hex_strings_in_view]
+    # CORRECTED: Keep the hex indexes as a list of strings for the query
+    hex_strings_for_query = list(hex_strings_in_view)
 
     conn = get_db_connection()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            # This query now returns a 'final_impact_score' as required.
-            # NOTE: For now, the score is simply the count of complaints.
-            # You can replace 'COUNT(c.unique_key)' with a more complex
-            # calculation here if needed.
+            # CORRECTED: The SQL query no longer casts the parameter to bigint[]
             query = """
                 SELECT
                     c.h3_index,
@@ -88,7 +85,8 @@ def get_heatmap_data(
                   AND cc.category = %s
                 GROUP BY c.h3_index;
             """
-            cursor.execute(query, (hex_ints_for_query, category))
+            # CORRECTED: Pass the list of strings to the query
+            cursor.execute(query, (hex_strings_for_query, category))
             results = cursor.fetchall()
     except Exception as e:
         print(f"An error occurred in get_heatmap_data: {e}")
@@ -97,10 +95,8 @@ def get_heatmap_data(
         if conn is not None:
             conn.close()
 
-    # Create a dictionary for quick lookups of scores by hex index
-    scores_by_hex = {
-        h3.int_to_str(row["h3_index"]): row["final_impact_score"] for row in results
-    }
+    # CORRECTED: The h3_index from the database is now a string, so no conversion is needed
+    scores_by_hex = {row["h3_index"]: row["final_impact_score"] for row in results}
 
     features = []
     # Loop through all hexagons in view to build the GeoJSON response
