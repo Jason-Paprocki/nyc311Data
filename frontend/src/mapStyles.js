@@ -24,30 +24,63 @@ export const highlightedDistrictStyle = {
   },
 };
 
-// --- THIS IS THE FIX ---
-// Style for the H3 hexagon heatmap layer
+// Style for the H3 hexagon heatmap layer with a Green-Orange-Red scale.
+// The "fill-color" uses a "step" expression to create discrete color buckets.
 export const heatmapLayerStyle = {
   id: "heatmap",
   type: "fill",
   paint: {
     "fill-color": [
-      "interpolate",
-      ["linear"],
-      ["get", "count"],
-      0,
-      "rgba(0, 0, 0, 0)", // Transparent for 0 count
-      1,
-      "#feebe2",
-      5,
-      "#fbb4b9",
-      10,
-      "#f768a1",
-      20,
-      "#c51b8a",
-      50,
-      "#7a0177",
+      "step",
+      ["get", "final_impact_score"],
+      "#2dc937", // Green for scores 0-33
+      34,
+      "#fbb429", // Orange for scores 34-66
+      67,
+      "#e51919", // Red for scores 67+
     ],
     "fill-opacity": 0.7,
     "fill-outline-color": "rgba(255, 255, 255, 0.1)",
+  },
+};
+
+// Style for the clustered points layer
+export const clusterLayerStyle = {
+  id: "clusters",
+  type: "circle",
+  paint: {
+    "circle-color": [
+      "step",
+      ["get", "point_count"],
+      "#51bbd6", // Blue for < 100 points
+      100,
+      "#f1f075", // Yellow for 100-750 points
+      750,
+      "#f28cb1", // Pink for >= 750 points
+    ],
+    "circle-radius": ["step", ["get", "point_count"], 20, 100, 30, 750, 40],
+  },
+};
+
+// Style for the cluster count text
+export const clusterCountLayerStyle = {
+  id: "cluster-count",
+  type: "symbol",
+  layout: {
+    "text-field": "{point_count_abbreviated}",
+    "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+    "text-size": 12,
+  },
+};
+
+// Style for the unclustered, individual points
+export const unclusteredPointLayerStyle = {
+  id: "unclustered-point",
+  type: "circle",
+  paint: {
+    "circle-color": "#11b4da",
+    "circle-radius": 4,
+    "circle-stroke-width": 1,
+    "circle-stroke-color": "#fff",
   },
 };

@@ -2,8 +2,17 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl/maplibre";
 import * as turf from "@turf/turf";
 import { WebMercatorViewport } from "@math.gl/web-mercator";
+
 import Header from "./components/Header";
-import { highlightedDistrictStyle, heatmapLayerStyle } from "./mapStyles";
+import CategorySelector from "./components/CategorySelector";
+import {
+  highlightedDistrictStyle,
+  heatmapLayerStyle,
+  clusterLayerStyle,
+  clusterCountLayerStyle,
+  unclusteredPointLayerStyle,
+} from "./mapStyles";
+
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./App.css";
 
@@ -12,44 +21,10 @@ const NYC_BOUNDS = [
   [-73.700181, 40.917577],
 ];
 
-const CategorySelector = ({
-  selectedCategory,
-  setSelectedCategory,
-  isLoading,
-}) => {
-  const [categories, setCategories] = useState([]);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch("/api/v1/categories");
-        if (!response.ok) throw new Error("Network response was not ok");
-        const data = await response.json();
-        setCategories(data);
-        if (data.length > 0 && !selectedCategory) {
-          setSelectedCategory(data[0].category);
-        }
-      } catch (err) {
-        console.error("Failed to fetch categories:", err);
-      }
-    };
-    fetchCategories();
-  }, [setSelectedCategory, selectedCategory]);
-
-  return (
-    <div className="category-selector">
-      {categories.map(({ category }) => (
-        <button
-          key={category}
-          className={`category-btn ${selectedCategory === category ? "selected" : ""}`}
-          onClick={() => setSelectedCategory(category)}
-          disabled={isLoading} // Disable button when loading
-        >
-          {category}
-        </button>
-      ))}
-    </div>
-  );
+// Zoom levels to switch between heatmap, clusters, and individual points.
+const ZOOM_THRESHOLD = {
+  CLUSTER: 12,
+  POINT: 15,
 };
 
 function App() {
@@ -63,12 +38,13 @@ function App() {
   const [allDistricts, setAllDistricts] = useState(null);
   const [highlightedDistrict, setHighlightedDistrict] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
+  const [pointsData, setPointsData] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [isLoading, setIsLoading] = useState(false); // The missing state variable
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Fetch community district boundary data for the search feature on initial load.
   useEffect(() => {
     const fetchDistrictData = async () => {
-      // This function fetches community district boundaries for the search feature
       try {
         const response = await fetch(
           "https://data.cityofnewyork.us/resource/5crt-au7u.json",
@@ -87,52 +63,67 @@ function App() {
     fetchDistrictData();
   }, []);
 
-  const fetchHeatmapData = useCallback(async () => {
+  // Main data fetching logic, called when map moves or category changes.
+  const fetchData = useCallback(async () => {
     if (!mapRef.current || !selectedCategory) return;
 
-    setIsLoading(true); // Start loading
-    console.log(
-      `🔥 [TRIGGER] Fetching heatmap for category: ${selectedCategory}`,
-    );
-
+    setIsLoading(true);
     const map = mapRef.current.getMap();
     const bounds = map.getBounds();
     const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+    const currentZoom = map.getZoom();
 
     try {
-      const response = await fetch(
-        `/api/v1/heatmap?category=${encodeURIComponent(selectedCategory)}&bbox=${bbox}`,
-      );
+      // Determine which API endpoint to call based on the current zoom level.
+      const endpoint =
+        currentZoom < ZOOM_THRESHOLD.CLUSTER
+          ? `/api/v1/heatmap?category=${encodeURIComponent(
+              selectedCategory,
+            )}&bbox=${bbox}`
+          : `/api/v1/points?category=${encodeURIComponent(
+              selectedCategory,
+            )}&bbox=${bbox}`;
+
+      const response = await fetch(endpoint);
       if (!response.ok) {
         throw new Error(`API call failed with status: ${response.status}`);
       }
       const data = await response.json();
-      console.log(
-        `📦 [DATA] Received ${data.features.length} heatmap features.`,
-      );
-      setHeatmapData(data);
+
+      // Update the appropriate data state based on the zoom level.
+      if (currentZoom < ZOOM_THRESHOLD.CLUSTER) {
+        setHeatmapData(data);
+        setPointsData(null);
+      } else {
+        setPointsData(data);
+        setHeatmapData(null);
+      }
     } catch (error) {
-      console.error("❌ [ERROR] Failed to fetch heatmap data:", error);
+      console.error("Failed to fetch map data:", error);
       setHeatmapData(null);
+      setPointsData(null);
     } finally {
-      setIsLoading(false); // Stop loading
+      setIsLoading(false);
     }
   }, [selectedCategory]);
 
-  // Effect to re-fetch heatmap data when the selected category changes
+  // Re-fetch data whenever the selected category changes.
   useEffect(() => {
     if (selectedCategory) {
-      fetchHeatmapData();
+      fetchData();
     }
-  }, [selectedCategory, fetchHeatmapData]);
+  }, [selectedCategory, fetchData]);
 
+  // Handles the address search event from the Header component.
   const handleSearch = async (address) => {
-    // This function geocodes an address and highlights the corresponding district
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          address,
+        )}&limit=1`,
       );
       const data = await response.json();
+
       if (data && data.length > 0 && allDistricts) {
         const { lat, lon } = data[0];
         const newPos = {
@@ -140,6 +131,8 @@ function App() {
           longitude: parseFloat(lon),
         };
         const point = turf.point([newPos.longitude, newPos.latitude]);
+
+        // Find which community district the searched point falls into.
         let foundDistrict = null;
         for (const district of allDistricts.features) {
           if (turf.booleanPointInPolygon(point, district.geometry)) {
@@ -147,6 +140,8 @@ function App() {
             break;
           }
         }
+
+        // If a district is found, zoom the map to fit its boundaries.
         if (foundDistrict) {
           const [minLng, minLat, maxLng, maxLat] = turf.bbox(foundDistrict);
           const viewport = new WebMercatorViewport({
@@ -164,6 +159,7 @@ function App() {
           setViewState({ longitude, latitude, zoom });
           setHighlightedDistrict(foundDistrict);
         } else {
+          // If no district is found, just center the map on the point.
           setViewState({ ...newPos, zoom: 14 });
           setHighlightedDistrict(null);
         }
@@ -177,7 +173,7 @@ function App() {
     }
   };
 
-  const mapStyleUrl = `https://api.maptiler.com/maps/019986e1-bffa-78b0-a4af-bca020aa39ae/style.json?key=${import.meta.env.VITE_MAPTILER_API}`;
+  const mapStyleUrl = `https://api.maptiler.com/maps/dataviz-dark/style.json?key=GET_YOUR_OWN_KEY`;
 
   return (
     <div id="app-container">
@@ -192,18 +188,40 @@ function App() {
           ref={mapRef}
           {...viewState}
           onMove={(evt) => setViewState(evt.viewState)}
-          onMoveEnd={fetchHeatmapData}
-          onLoad={fetchHeatmapData}
+          onMoveEnd={fetchData}
+          onLoad={fetchData}
           style={{ flexGrow: 1 }}
           mapStyle={mapStyleUrl}
           maxBounds={NYC_BOUNDS}
           className={`map-container ${isLoading ? "loading" : ""}`}
         >
-          {heatmapData && (
+          {/* Heatmap Layer */}
+          {heatmapData && viewState.zoom < ZOOM_THRESHOLD.CLUSTER && (
             <Source id="heatmap-source" type="geojson" data={heatmapData}>
               <Layer {...heatmapLayerStyle} />
             </Source>
           )}
+
+          {/* Clustered and Unclustered Points Layer */}
+          {pointsData && viewState.zoom >= ZOOM_THRESHOLD.CLUSTER && (
+            <Source
+              id="points-source"
+              type="geojson"
+              data={pointsData}
+              cluster={true}
+              clusterMaxZoom={ZOOM_THRESHOLD.POINT - 1}
+              clusterRadius={50}
+            >
+              <Layer {...clusterLayerStyle} />
+              <Layer {...clusterCountLayerStyle} />
+              <Layer
+                {...unclusteredPointLayerStyle}
+                filter={["!", ["has", "point_count"]]}
+              />
+            </Source>
+          )}
+
+          {/* Searched Location Marker */}
           {markerPosition && (
             <Marker
               longitude={markerPosition.longitude}
@@ -211,6 +229,8 @@ function App() {
               anchor="bottom"
             />
           )}
+
+          {/* Highlighted District Layer */}
           {highlightedDistrict && (
             <Source type="geojson" data={highlightedDistrict}>
               <Layer {...highlightedDistrictStyle} />

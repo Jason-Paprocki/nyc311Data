@@ -66,3 +66,142 @@ https://portal.311.nyc.gov/check-status/
 
 
 https://experience.arcgis.com/experience/c625a78991d34ae59deb7a33806ac0d1/page/Population-%7C-Density?views=Count
+
+
+
+
+NYC 311 Explorer API v1
+
+This document outlines the API endpoints required for the NYC 311 Explorer frontend application.
+Base URL
+
+/api/v1
+Endpoints
+1. Get Categories
+
+Retrieves a list of all available 311 complaint categories for filtering.
+
+    URL: /categories
+
+    Method: GET
+
+    Query Parameters: None
+
+    Success Response (200 OK):
+
+    [
+      {
+        "category": "Noise",
+        "sort_order": 1
+      },
+      {
+        "category": "Sanitation",
+        "sort_order": 2
+      },
+      {
+        "category": "Housing & Buildings",
+        "sort_order": 3
+      }
+    ]
+
+    Error Response (500 Internal Server Error):
+
+    {
+      "error": "Failed to retrieve categories."
+    }
+
+2. Get Heatmap Data
+
+Retrieves aggregated 311 complaint data as H3 hexagons for a given category and geographic bounding box. This endpoint should be used for lower zoom levels.
+
+    URL: /heatmap
+
+    Method: GET
+
+    Query Parameters:
+
+        category (string, required): The complaint category to filter by (e.g., "Noise").
+
+        bbox (string, required): A comma-separated string of the map's bounding box coordinates in the format west,south,east,north (e.g., -74.1,40.7,-73.9,40.8).
+
+    Success Response (200 OK):
+    A GeoJSON FeatureCollection where each feature is a Polygon representing an H3 hexagon. The properties of each feature must include the final_impact_score.
+
+    {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [-73.984, 40.759],
+                [-73.985, 40.758],
+                [-73.984, 40.757],
+                [-73.983, 40.758],
+                [-73.984, 40.759]
+              ]
+            ]
+          },
+          "properties": {
+            "h3_index": "892a100d6bfffff",
+            "final_impact_score": 85.5
+          }
+        }
+      ]
+    }
+
+    Client-Side Visualization Note: The frontend client buckets the final_impact_score into three discrete color categories:
+
+        Good (Green): Scores from 0 to 33.
+
+        Average (Orange): Scores from 34 to 66.
+
+        Poor (Red): Scores 67 and higher.
+
+    Error Response (500 Internal Server Error):
+
+    {
+      "error": "Failed to retrieve heatmap data."
+    }
+
+3. Get Points Data
+
+Retrieves individual 311 complaint locations for a given category and geographic bounding box. This endpoint should be used for higher zoom levels to show clusters and individual points.
+
+    URL: /points
+
+    Method: GET
+
+    Query Parameters:
+
+        category (string, required): The complaint category to filter by.
+
+        bbox (string, required): A comma-separated string of the map's bounding box in the format west,south,east,north.
+
+    Success Response (200 OK):
+    A GeoJSON FeatureCollection where each feature is a Point representing a single 311 complaint.
+
+    {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [-73.987, 40.752]
+          },
+          "properties": {
+            "unique_key": "58392019",
+            "complaint_type": "Noise - Residential"
+          }
+        }
+      ]
+    }
+
+    Error Response (500 Internal Server Error):
+
+    {
+      "error": "Failed to retrieve points data."
+    }

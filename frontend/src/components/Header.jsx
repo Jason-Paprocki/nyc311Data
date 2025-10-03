@@ -1,66 +1,74 @@
 import React, { useState, useEffect } from "react";
 import "./Header.css";
 
+// Defines the bounding box for NYC to prioritize local search results.
 const NYC_VIEWBOX = [-74.25909, 40.477398, -73.700181, 40.917577].join(",");
 
 function Header({ onSearch }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
-  // --- NEW STATE TO FIX THE BUG ---
-  // This state explicitly controls the visibility of the suggestions dropdown.
   const [showSuggestions, setShowSuggestions] = useState(true);
 
-  const fetchSuggestions = async (searchQuery) => {
-    if (searchQuery.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&countrycodes=us&limit=5&viewbox=${NYC_VIEWBOX}&bounded=1&addressdetails=1`,
-    );
-    const data = await response.json();
-    setSuggestions(data);
-  };
-
   useEffect(() => {
-    // Only fetch if the query is not empty and we want to show suggestions
+    // Fetches address suggestions from OpenStreetMap's Nominatim API.
+    const fetchSuggestions = async (searchQuery) => {
+      // Avoid API calls for very short queries.
+      if (searchQuery.length < 3) {
+        setSuggestions([]);
+        return;
+      }
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            searchQuery,
+          )}&countrycodes=us&limit=5&viewbox=${NYC_VIEWBOX}&bounded=1&addressdetails=1`,
+        );
+        const data = await response.json();
+        setSuggestions(data);
+      } catch (error) {
+        console.error("Failed to fetch suggestions:", error);
+      }
+    };
+
+    // Debounce API calls to prevent firing on every keystroke.
     if (query && showSuggestions) {
       const timerId = setTimeout(() => {
         fetchSuggestions(query);
-      }, 300);
+      }, 300); // Wait 300ms after user stops typing.
 
-      return () => {
-        clearTimeout(timerId);
-      };
+      return () => clearTimeout(timerId);
     } else {
-      setSuggestions([]); // Clear suggestions if input is empty or hidden
+      setSuggestions([]);
     }
   }, [query, showSuggestions]);
 
+  // Formats the raw suggestion data into a readable address string.
   const formatSuggestion = (suggestion) => {
     const { address } = suggestion;
-    let house = address.house_number || "";
-    let road = address.road || "";
-    let city = address.city || address.town || address.village || "";
-    let postcode = address.postcode || "";
-    return [house, road, city, "NY", postcode].filter(Boolean).join(", ");
+    return [
+      address.house_number,
+      address.road,
+      address.city || address.town || address.village,
+      "NY",
+      address.postcode,
+    ]
+      .filter(Boolean)
+      .join(", ");
   };
 
+  // Handles when a user clicks on a suggestion.
   const handleSuggestionClick = (suggestion) => {
     const fullAddress = formatSuggestion(suggestion);
     setQuery(fullAddress);
-    // --- FIX ---
-    // Explicitly hide the suggestions dropdown upon selection.
-    setShowSuggestions(false);
-    onSearch(fullAddress);
+    setShowSuggestions(false); // Hide suggestions after selection.
+    onSearch(fullAddress); // Pass the search query up to the App component.
   };
 
-  // --- NEW HANDLER ---
-  // When the user types, show the suggestions again.
+  // Handles changes to the input field.
   const handleInputChange = (e) => {
     setQuery(e.target.value);
     if (!showSuggestions) {
-      setShowSuggestions(true);
+      setShowSuggestions(true); // Show suggestions again if user starts typing.
     }
   };
 
@@ -74,12 +82,11 @@ function Header({ onSearch }) {
           type="text"
           placeholder="Search an address in New York City..."
           value={query}
-          onChange={handleInputChange} // Use the new handler
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} // Hide on blur with a small delay
+          onChange={handleInputChange}
+          // A short delay on blur prevents the list from disappearing before a click is registered.
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
           autoComplete="off"
         />
-        {/* --- UPDATED RENDER LOGIC --- */}
-        {/* Only show the list if there are suggestions AND we want to show them */}
         {suggestions.length > 0 && showSuggestions && (
           <ul className="suggestions-list">
             {suggestions.map((suggestion) => (
